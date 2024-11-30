@@ -5,7 +5,6 @@ import StationsSelect from './StationSelect';
 import HourChoices from './HourChoices';
 import stationsJson from './stations.json';
 
-const STATIONS_URL = "https://api-yebsp.tcddtasimacilik.gov.tr/istasyon/istasyonYukle";
 const SEFER_URL = "https://api-yebsp.tcddtasimacilik.gov.tr/sefer/seferSorgula";
 
 const App = () => {
@@ -17,32 +16,24 @@ const App = () => {
     const [date, setDate] = useState("");
     const [journeys, setJourneys] = useState([]);
     const [selectedHours, setSelectedHours] = useState([]);
-    console.log( "test",stationsJson.Arifiye );
     // İstasyondan verilerini yükleme
     useEffect(() => {
-        async function fetchStations() {
-            const body = {
-                kanalKodu: "3",
-                dil: 1,
-                tarih: "Dec 10, 2011 12:00:00 AM",
-                satisSorgu: true,
-            };
-            const response = await postRequest(STATIONS_URL, body);
-            if (response && response.istasyonBilgileriList) {
-                const stationsData = response.istasyonBilgileriList.reduce((acc, station) => {
-                    acc[station.istasyonAdi] = station.istasyonId;
-                    return acc;
-                }, {});
-                setStations(stationsData);
-            } else {
-                console.error("Failed to fetch station data:", response);
-            }
-        }
-        fetchStations();
-    }, []);
-    console.log("istasyon", selectedStations.binisIstasyonAdi);
-    console.log("istasyon2", selectedStations.inisIstasyonAdi);
+        setStations(stationsJson);
+    },[]);
 
+    function formatDateToTCDDFormat(dateString) {
+        const date = new Date(dateString);
+        const months = [
+            "Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+        ];
+        const day = date.getDate();
+        const month = months[date.getMonth()];
+        const year = date.getFullYear();
+        return `${month} ${day}, ${year} 00:00:00 AM`;
+    }
+    
+    
     // Sefer sorgulama
     async function fetchJourneys() {
         if (!selectedStations.binisIstasyonAdi || !selectedStations.inisIstasyonAdi || !date) {
@@ -61,7 +52,7 @@ const App = () => {
                 binisIstasyonu_isHaritaGosterimi: false,
                 inisIstasyonu_isHaritaGosterimi: false,
                 seyahatTuru: 1,
-                gidisTarih: "Dec 12, 2024 00:00:00 AM",
+                gidisTarih: date,
                 bolgeselGelsin: false,
                 islemTipi: 0,
                 yolcuSayisi: 1,
@@ -86,8 +77,7 @@ const App = () => {
             />
             <input
                 type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={(e) => setDate(formatDateToTCDDFormat(e.target.value))}
             />
             <button onClick={fetchJourneys}>Find Journeys</button>
             <HourChoices
