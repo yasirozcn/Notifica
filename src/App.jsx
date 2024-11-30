@@ -1,8 +1,8 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { postRequest } from './api';
-import StationsSelect from './StationSelect';
-import HourChoices from './HourChoices';
+import StationsSelect from './components/StationSelect';
+import HourChoices from './components/HourChoices';
 import stationsJson from './stations.json';
 
 const SEFER_URL = "https://api-yebsp.tcddtasimacilik.gov.tr/sefer/seferSorgula";
