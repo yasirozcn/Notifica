@@ -1,6 +1,8 @@
+/* eslint-disable no-undef */
 /* eslint-disable react/prop-types */
 /* eslint-disable no-unused-vars */
 import React from 'react';
+import axios from 'axios';
 
 const HourChoices = ({ journeys, selectedHours, setSelectedHours }) => {
     const handleCheckboxChange = (e) => {
@@ -16,25 +18,45 @@ const HourChoices = ({ journeys, selectedHours, setSelectedHours }) => {
         const availableSeats = journey.vagonTipleriBosYerUcret[0]?.kalanSayi || 0; // kalanSayi değeri
         return `${timeString} -> available ${availableSeats}`;
     }))];
-    
+
+    // Email gönderme fonksiyonu
+    const sendEmail = async () => {
+        try {
+            const emailData = {
+                to: 'yasirozcn@gmail.com', // E-posta alıcısı
+                subject: 'Selected Hours Reminder',
+                text: `You have selected the following hours: ${selectedHours.join(', ')}`
+            };
+
+            const response = await axios.post('http://localhost:8080/send-email', emailData, {
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            console.log('Email sent:', response.data);
+        } catch (error) {
+            console.error('Error sending email:', error.response || error.message);
+        }
+    };
 
     return (
         <div>
             <h3>Select Hours</h3>
-            {times.sort((a,b) => a.localeCompare(b)).map((time) => (
+            {times.sort((a, b) => a.localeCompare(b)).map((time) => (
                 <div key={time}>
-                <label key={time}>
-                    <input
-                        type="checkbox"
-                        value={time}
-                        checked={selectedHours.includes(time)}
-                        onChange={handleCheckboxChange}
-                    />
-                    {time}
-                </label>
+                    <label>
+                        <input
+                            type="checkbox"
+                            value={time}
+                            checked={selectedHours.includes(time)}
+                            onChange={handleCheckboxChange}
+                        />
+                        {time}
+                    </label>
                 </div>
             ))}
-            <button onClick={() => console.log(selectedHours)}>Show Selected Hours</button>
+            <button onClick={sendEmail}>Send Reminder Email</button>
         </div>
     );
 };
