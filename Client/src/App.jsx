@@ -4,6 +4,7 @@ import { postRequest } from './api';
 import StationsSelect from './components/StationSelect';
 import HourChoices from './components/HourChoices';
 import stationsJson from './stations.json';
+import './App.css';
 
 const SEFER_URL = "https://api-yebsp.tcddtasimacilik.gov.tr/sefer/seferSorgula";
 
@@ -16,6 +17,11 @@ const App = () => {
     const [date, setDate] = useState("");
     const [journeys, setJourneys] = useState([]);
     const [selectedHours, setSelectedHours] = useState([]);
+    const [business, setBusiness] = useState(false);
+
+    const toggleHandler = () => {
+        setBusiness((prevState) => !prevState);
+      };
     // İstasyondan verilerini yükleme
     useEffect(() => {
         setStations(stationsJson);
@@ -79,11 +85,20 @@ const App = () => {
                 type="date"
                 onChange={(e) => setDate(formatDateToTCDDFormat(e.target.value))}
             />
+            <div className="toggle-container" onClick={toggleHandler}>
+                <div className={`toggle-switch ${business ? "active" : ""}`}>
+                    <div className="toggle-knob"></div>
+                </div>
+                <span className="toggle-label">
+                    {business ? "Business Class Tickets: ON" : "Business Class Tickets: OFF"}
+                </span>
+            </div>
             <button onClick={fetchJourneys}>Find Journeys</button>
             <HourChoices
                 journeys={journeys}
                 selectedHours={selectedHours}
                 setSelectedHours={setSelectedHours}
+                business={business}
             />
         </div>
     );

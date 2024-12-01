@@ -1,10 +1,9 @@
-/* eslint-disable no-undef */
 /* eslint-disable react/prop-types */
 /* eslint-disable no-unused-vars */
 import React from 'react';
 import axios from 'axios';
 
-const HourChoices = ({ journeys, selectedHours, setSelectedHours }) => {
+const HourChoices = ({ journeys, selectedHours, setSelectedHours, business }) => {
     const handleCheckboxChange = (e) => {
         const { value, checked } = e.target;
         setSelectedHours((prev) =>
@@ -16,8 +15,16 @@ const HourChoices = ({ journeys, selectedHours, setSelectedHours }) => {
         const date = new Date(journey.binisTarih);
         const timeString = date.toTimeString().substring(0, 5); // HH:mm formatı
         const availableSeats = journey.vagonTipleriBosYerUcret[0]?.kalanSayi || 0; // kalanSayi değeri
-        return `${timeString} -> available ${availableSeats}`;
+        const businessSeats = journey.vagonTipleriBosYerUcret[1]?.kalanSayi || 0; // kalanSayi değeri
+
+        if (business) {
+            return `${timeString} -> economy ${availableSeats}, business ${businessSeats}`;
+        } else {
+            return `${timeString} -> available ${availableSeats}`;
+        }
     }))];
+
+    console.log(journeys); // journeys array'i
 
     // Email gönderme fonksiyonu
     const sendEmail = async () => {
