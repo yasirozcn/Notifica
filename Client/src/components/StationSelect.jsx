@@ -10,13 +10,14 @@ const StationsSelect = ({ stations, selectedStations, setSelectedStations }) => 
     };
 
     return (
-        <div>
-            <label>
+        <div className="flex flex-row gap-4 max-w-2xl max-h-24 justify-center items-center">
+            <label >
                 Binis Istasyonu:
                 <select
                     name="binisIstasyonAdi"
                     value={selectedStations.binisIstasyonAdi}
                     onChange={handleChange}
+                    className='border-2 border-gray-500'
                 >
                     <option value="">Select</option>
                     {Object.keys(stations).map((station) => (
@@ -32,6 +33,7 @@ const StationsSelect = ({ stations, selectedStations, setSelectedStations }) => 
                     name="inisIstasyonAdi"
                     value={selectedStations.inisIstasyonAdi}
                     onChange={handleChange}
+                    className='border-2 border-gray-500'
                 >
                     <option value="">Select</option>
                     {Object.keys(stations).map((station) => (

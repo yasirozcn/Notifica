@@ -5,6 +5,7 @@ import StationsSelect from './components/StationSelect';
 import HourChoices from './components/HourChoices';
 import stationsJson from './stations.json';
 import './App.css';
+import NavBar from './components/NavBar';
 
 const SEFER_URL = "https://api-yebsp.tcddtasimacilik.gov.tr/sefer/seferSorgula";
 
@@ -75,7 +76,9 @@ const App = () => {
     }
 
     return (
-        <div>
+        <div className='flex flex-col h-screen items-center'>
+            <NavBar />
+            <div>
             <StationsSelect
                 stations={stations}
                 selectedStations={selectedStations}
@@ -93,13 +96,14 @@ const App = () => {
                     {business ? "Business Class Tickets: ON" : "Business Class Tickets: OFF"}
                 </span>
             </div>
-            <button onClick={fetchJourneys}>Find Journeys</button>
+            <button onClick={fetchJourneys} className='bg-gray-800 hover:bg-gray-900 text-white font-bold py-2 px-4 rounded'>Find Journeys</button>
             <HourChoices
                 journeys={journeys}
                 selectedHours={selectedHours}
                 setSelectedHours={setSelectedHours}
                 business={business}
             />
+        </div>
         </div>
     );
 };

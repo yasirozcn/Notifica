@@ -49,7 +49,7 @@ const HourChoices = ({ journeys, selectedHours, setSelectedHours, business }) =>
 
     return (
         <div>
-            <h3>Select Hours</h3>
+            <h3 className="text-2xl font-bold mb-4">Select Hours</h3>
             {times.sort((a, b) => a.localeCompare(b)).map((time) => (
                 <div key={time}>
                     <label>
@@ -63,7 +63,9 @@ const HourChoices = ({ journeys, selectedHours, setSelectedHours, business }) =>
                     </label>
                 </div>
             ))}
-            <button onClick={sendEmail}>Send Reminder Email</button>
+            <button onClick={sendEmail}
+            className='bg-gray-800 hover:bg-gray-900 text-white font-bold py-2 px-4 rounded'
+            >Send Reminder Email</button>
         </div>
     );
 };
