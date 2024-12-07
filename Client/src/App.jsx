@@ -77,7 +77,6 @@ const App = () => {
 
     return (
         <div className='flex flex-col h-screen items-center'>
-            <NavBar />
             <div>
             <StationsSelect
                 stations={stations}

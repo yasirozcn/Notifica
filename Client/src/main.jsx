@@ -1,20 +1,32 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
+import React from 'react'
+import { createRoot } from 'react-dom'
 import './index.css'
-import App from './App.jsx'
-import { ClerkProvider } from '@clerk/clerk-react'
+import { RouterProvider, createBrowserRouter } from 'react-router-dom'
 
+// Import the layouts
+import RootLayout from './layouts/root-layout'
 
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+// Import the components
+import App from './App'
+import Home from './routes/Home'
+import SignInPage from './routes/SignInPage'
+import SignUpPage from './routes/SignUpPage'
 
-if (!PUBLISHABLE_KEY) {
-  throw new Error("Missing Publishable Key")
-}
+const router = createBrowserRouter([
+  {
+    element: <RootLayout />,
+    children: [
+      { path: '/', element: <Home /> },
+      { path: '/alarm', element: <App /> },
+      { path: '/sign-in/*', element: <SignInPage /> },
+      { path: '/sign-up/*', element: <SignUpPage /> },
+    ],
+  },
+])
+
 
 createRoot(document.getElementById('root')).render(
-  <StrictMode>
-      <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/">
-        <App />
-    </ClerkProvider>
-  </StrictMode>,
+  <React.StrictMode>
+    <RouterProvider router={router} />
+  </React.StrictMode>,
 )
