@@ -10,7 +10,7 @@ const navigate = useNavigate(); // React Router yönlendirme
       <div>
         <ul className='flex gap-6'>
           <li 
-          className='group py-3 px-6 border-2 bg-[#9ebf3f] gap-2 rounded-[48px] cursor-pointer hover:border-[#9ebf3f] hover:bg-slate-200 transition duration-150 ease-in'
+          className='group flex items-center justify-center px-6 border-2 bg-[#9ebf3f] gap-2 rounded-[48px] cursor-pointer hover:border-[#9ebf3f] hover:bg-slate-200 transition duration-150 ease-in'
           onClick={() => navigate('/sign-in')} // Yönlendirme
 
           >
