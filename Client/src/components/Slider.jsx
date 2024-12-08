@@ -13,10 +13,15 @@ const Slider = ({ images, speed = 1 }) => {
 
     const animate = () => {
       if (!isPaused && slider) {
-        scrollAmount.current += speed;
-        if (scrollAmount.current >= slider.scrollWidth / 2) {
-          scrollAmount.current = 0; // Sonsuz döngü efekti
+        scrollAmount.current += speed; // speed negatif olabilir
+
+        // Sonsuz döngü efekti
+        if (speed > 0 && scrollAmount.current >= slider.scrollWidth / 2) {
+          scrollAmount.current = 0;
+        } else if (speed < 0 && scrollAmount.current <= 0) {
+          scrollAmount.current = slider.scrollWidth / 2;
         }
+
         slider.style.transform = `translateX(-${scrollAmount.current}px)`;
       }
       animationRef.current = requestAnimationFrame(animate); // Yeni animasyonu sakla

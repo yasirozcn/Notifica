@@ -11,7 +11,7 @@ function NavBar() {
   const navigate = useNavigate(); // React Router yönlendirme
 
   return (
-    <nav className='flex justify-between bg-[#1e2203] text-white py-4 px-10 items-center w-full'>
+    <nav className='flex justify-between bg-[#fbf9ef] text-white py-4 px-10 items-center w-full'>
       <div className='flex items-center gap-5'>
         <img src={logo} alt="Logo" className='w-30 h-10'
         onClick={() => navigate('/')}/>
