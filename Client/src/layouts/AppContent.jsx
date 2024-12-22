@@ -18,7 +18,7 @@ export default function AppContent() {
     <>
       <header className="header">
         <NavBar />
-       </header>
+      </header>
       <main>
         <Outlet />
       </main>

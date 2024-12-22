@@ -44,15 +44,20 @@ const Slider = ({ images, speed = 1 }) => {
         className="flex w-max"
         style={{ whiteSpace: 'nowrap' }}
       >
-        {[...images, ...images].map((image, index) => ( // Sonsuzluk için görselleri iki kere döngüye sok
-          <div key={index} className="flex-shrink-0">
-            <img
-              src={image}
-              alt={`Slide ${index}`}
-              className="w-auto h-64 object-cover"
-            />
-          </div>
-        ))}
+        {[...images, ...images].map(
+          (
+            image,
+            index // Sonsuzluk için görselleri iki kere döngüye sok
+          ) => (
+            <div key={index} className="flex-shrink-0">
+              <img
+                src={image}
+                alt={`Slide ${index}`}
+                className="w-auto h-64 object-cover"
+              />
+            </div>
+          )
+        )}
       </div>
     </div>
   );
