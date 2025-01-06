@@ -6,6 +6,7 @@ import HourChoices from './components/HourChoices';
 import stationsJson from './stations.json';
 import './App.css';
 import NavBar from './components/NavBar';
+import axios from 'axios';
 
 const SEFER_URL = 'https://api-yebsp.tcddtasimacilik.gov.tr/sefer/seferSorgula';
 
@@ -16,7 +17,7 @@ const App = () => {
     inisIstasyonAdi: '',
   });
   const [date, setDate] = useState('');
-  const [journeys, setJourneys] = useState([]);
+  const [journeys, setJourneys] = useState(null);
   const [selectedHours, setSelectedHours] = useState([]);
   const [business, setBusiness] = useState(false);
 
@@ -29,25 +30,35 @@ const App = () => {
   }, []);
 
   function formatDateToTCDDFormat(dateString) {
-    const date = new Date(dateString);
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    const day = date.getDate();
-    const month = months[date.getMonth()];
-    const year = date.getFullYear();
-    return `${month} ${day}, ${year} 00:00:00 AM`;
+    try {
+      console.log('Input dateString:', dateString); // Debug için gelen tarihi logla
+
+      // Eğer tarih zaten DD.MM.YYYY formatındaysa direkt döndür
+      if (/^\d{2}\.\d{2}\.\d{4}$/.test(dateString)) {
+        return dateString;
+      }
+
+      // ISO string'den Date objesine çevir
+      const date = new Date(dateString);
+      console.log('Parsed date:', date); // Debug için parse edilmiş tarihi logla
+
+      if (isNaN(date.getTime())) {
+        throw new Error(`Invalid date input: ${dateString}`);
+      }
+
+      // Tarihi DD.MM.YYYY formatına çevir
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+
+      const formattedDate = `${day}.${month}.${year}`;
+      console.log('Formatted date:', formattedDate); // Debug için formatlanmış tarihi logla
+
+      return formattedDate;
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      throw new Error(`Tarih formatı geçersiz: ${dateString}`);
+    }
   }
 
   // Sefer sorgulama
@@ -60,31 +71,32 @@ const App = () => {
       alert('Lütfen tüm bilgileri doldurun!');
       return;
     }
-    const body = {
-      kanalKodu: 3,
-      dil: 0,
-      seferSorgulamaKriterWSDVO: {
-        satisKanali: 3,
-        binisIstasyonu: selectedStations.binisIstasyonAdi,
-        inisIstasyonu: selectedStations.inisIstasyonAdi,
-        binisIstasyonId: stationsJson[selectedStations.binisIstasyonAdi],
-        inisIstasyonId: stationsJson[selectedStations.inisIstasyonAdi],
-        binisIstasyonu_isHaritaGosterimi: false,
-        inisIstasyonu_isHaritaGosterimi: false,
-        seyahatTuru: 1,
-        gidisTarih: date,
-        bolgeselGelsin: false,
-        islemTipi: 0,
-        yolcuSayisi: 1,
-        aktarmalarGelsin: true,
-      },
-    };
-    const response = await postRequest(SEFER_URL, body);
-    console.log(response);
-    if (response && response.cevapBilgileri.cevapKodu === '000') {
-      setJourneys(response.seferSorgulamaSonucList);
-    } else {
-      console.error('No journeys found:', response);
+
+    try {
+      const formattedDate = formatDateToTCDDFormat(date);
+      console.log('Sending request with:', {
+        from: selectedStations.binisIstasyonAdi,
+        to: selectedStations.inisIstasyonAdi,
+        date: formattedDate,
+      });
+
+      const response = await axios.get('http://localhost:8080/scrape-tickets', {
+        params: {
+          from: selectedStations.binisIstasyonAdi,
+          to: selectedStations.inisIstasyonAdi,
+          date: formattedDate,
+        },
+      });
+
+      console.log('API Response:', response.data);
+      setJourneys(response.data);
+    } catch (error) {
+      console.error('Error fetching journeys:', error);
+      setJourneys(null);
+      alert(
+        'Seferler alınırken bir hata oluştu: ' +
+          (error.response?.data?.error || error.message)
+      );
     }
   }
 
@@ -116,12 +128,7 @@ const App = () => {
         >
           Find Journeys
         </button>
-        <HourChoices
-          journeys={journeys}
-          selectedHours={selectedHours}
-          setSelectedHours={setSelectedHours}
-          business={business}
-        />
+        {journeys && <HourChoices journeys={journeys} />}
       </div>
     </div>
   );

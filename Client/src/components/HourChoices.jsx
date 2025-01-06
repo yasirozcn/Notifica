@@ -2,90 +2,39 @@
 /* eslint-disable no-unused-vars */
 import React from 'react';
 import axios from 'axios';
+import { useUser } from '@clerk/clerk-react';
 
-const HourChoices = ({
-  journeys,
-  selectedHours,
-  setSelectedHours,
-  business,
-}) => {
-  const handleCheckboxChange = (e) => {
-    const { value, checked } = e.target;
-    setSelectedHours((prev) =>
-      checked ? [...prev, value] : prev.filter((hour) => hour !== value)
-    );
-  };
+const HourChoices = ({ journeys }) => {
+  // Gelen veriyi kontrol et
+  console.log('Received journeys data:', journeys);
 
-  const times = [
-    ...new Set(
-      journeys.map((journey) => {
-        const date = new Date(journey.binisTarih);
-        const timeString = date.toTimeString().substring(0, 5); // HH:mm formatı
-        const availableSeats =
-          journey.vagonTipleriBosYerUcret[0]?.kalanSayi || 0; // kalanSayi değeri
-        const businessSeats =
-          journey.vagonTipleriBosYerUcret[1]?.kalanSayi || 0; // kalanSayi değeri
+  // journeys null veya undefined ise boş div döndür
+  if (!journeys) {
+    return <div>Sefer bulunamadı.</div>;
+  }
 
-        if (business) {
-          return `${timeString} -> economy ${availableSeats}, business ${businessSeats}`;
-        } else {
-          return `${timeString} -> available ${availableSeats}`;
-        }
-      })
-    ),
-  ];
+  // API'den gelen veriyi doğru formatta al
+  const tickets = journeys.tickets || [];
+  const apiResponse = journeys.apiResponse;
 
-  console.log(journeys); // journeys array'i
-
-  // Email gönderme fonksiyonu
-  const sendEmail = async () => {
-    try {
-      const emailData = {
-        to: 'yasirozcn@gmail.com', // E-posta alıcısı
-        subject: 'Selected Hours Reminder',
-        text: `You have selected the following hours: ${selectedHours.join(', ')}`,
-      };
-
-      const response = await axios.post(
-        'http://localhost:8080/send-email',
-        emailData,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      console.log('Email sent:', response.data);
-    } catch (error) {
-      console.error('Error sending email:', error.response || error.message);
-    }
-  };
+  console.log('Tickets:', tickets);
+  console.log('API Response:', apiResponse);
 
   return (
-    <div>
-      <h3 className="text-2xl font-bold mb-4">Select Hours</h3>
-      {times
-        .sort((a, b) => a.localeCompare(b))
-        .map((time) => (
-          <div key={time}>
-            <label>
-              <input
-                type="checkbox"
-                value={time}
-                checked={selectedHours.includes(time)}
-                onChange={handleCheckboxChange}
-              />
-              {time}
-            </label>
+    <div className="hour-choices">
+      {tickets.length > 0 ? (
+        tickets.map((journey, index) => (
+          <div key={index} className="journey-card">
+            <div className="journey-time">{journey.time}</div>
+            <div className="journey-seats">
+              Boş Koltuk: {journey.availableSeats}
+            </div>
+            <div className="journey-price">Fiyat: {journey.price}</div>
           </div>
-        ))}
-      <button
-        onClick={sendEmail}
-        className="bg-gray-800 hover:bg-gray-900 text-white font-bold py-2 px-4 rounded"
-      >
-        Send Reminder Email
-      </button>
+        ))
+      ) : (
+        <div>Bu tarih için sefer bulunamadı.</div>
+      )}
     </div>
   );
 };

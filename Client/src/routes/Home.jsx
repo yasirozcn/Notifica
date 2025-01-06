@@ -155,7 +155,9 @@ function Home() {
           <h2 className="text-black text-l text-center pb-4">
             Choose the perfect plan for you
           </h2>
-          <h1 className="text-black text-2xl text-center pb-4">Pricing plan</h1>
+          <h1 className="text-black text-2xl text-center pb-4 font-bold">
+            Pricing plan
+          </h1>
           <h2 className="text-black text-l text-center pb-4">
             Lorem ipsum dolor sit amet, consectetur adipiscing elit.
           </h2>
