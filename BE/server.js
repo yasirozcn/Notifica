@@ -63,10 +63,6 @@ async function sendEmail(to, ticketInfo) {
 
 // Web scraping function
 async function scrapeTickets(from, to, date) {
-  console.log("Input date:", date); // Debug için tarih logla
-
-  console.log("Scraping tickets with params:", { from, to, date });
-
   const browser = await puppeteer.launch({
     headless: "new",
     executablePath:
@@ -80,8 +76,28 @@ async function scrapeTickets(from, to, date) {
   });
 
   const page = await browser.newPage();
+  let trainData = null;
 
   try {
+    // Network isteğini dinlemeye başla
+    await page.setRequestInterception(true);
+
+    page.on("request", (request) => {
+      request.continue();
+    });
+
+    page.on("response", async (response) => {
+      if (response.url().includes("train-availability?environment=dev")) {
+        try {
+          const responseText = await response.text();
+          console.log("Raw train data response:", responseText);
+          trainData = JSON.parse(responseText);
+        } catch (error) {
+          console.error("Error parsing response:", error);
+        }
+      }
+    });
+
     await page.setViewport({ width: 1280, height: 800 });
 
     console.log("Navigating to TCDD website...");
@@ -170,93 +186,17 @@ async function scrapeTickets(from, to, date) {
     }
     await page.screenshot({ path: "14.png" });
 
-    // Network isteğini dinlemeye başla
-    let trainData = null;
-    page.on("response", async (response) => {
-      if (response.url().includes("train-availability?environment=dev")) {
-        try {
-          // Response headers'ları al
-          const headers = response.headers();
-          console.log("Response headers:", headers);
-
-          // Response'u raw text olarak al
-          const responseText = await response.text();
-          console.log("Raw response:", responseText);
-
-          try {
-            trainData = JSON.parse(responseText);
-            console.log("Parsed train data:", trainData);
-          } catch (parseError) {
-            console.log("Error parsing JSON:", parseError);
-            console.log("Raw response text:", responseText);
-          }
-        } catch (error) {
-          console.log("Error getting response:", error);
-        }
-      }
-    });
-
-    // Request'leri de izle
-    page.on("request", (request) => {
-      if (request.url().includes("train-availability?environment=dev")) {
-        console.log("Request headers:", request.headers());
-        console.log("Request URL:", request.url());
-      }
-    });
-
-    // Arama butonuna tıkla
-    console.log("Clicking search button...");
+    // Arama butonuna tıkla ve response'u bekle
     await page.click("#searchSeferButton");
 
-    // vld-overlay'in kaybolmasını bekle
-    console.log("Waiting for overlay to disappear...");
-    await page.waitForFunction(
-      () => {
-        const overlay = document.querySelector(".vld-overlay");
-        return overlay && window.getComputedStyle(overlay).display === "none";
-      },
-      { timeout: 60000 }
-    );
+    // API yanıtının gelmesi için bekle
+    await new Promise((resolve) => setTimeout(resolve, 5000));
 
-    // API yanıtının gelmesi için bekleme
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-
-    // Sonuçları bekle
-    await page.waitForSelector("#accordionSefer", {
-      timeout: 60000,
-      visible: true,
-    });
-
-    // Bilet verilerini çek
-    const tickets = await page.evaluate(() => {
-      const results = [];
-      const rows = document.querySelectorAll("#accordionSefer .accordion-item");
-
-      rows.forEach((row) => {
-        const timeElement = row.querySelector(".seferSaati");
-        const seatsElement = row.querySelector(".bosKoltuk");
-        const priceElement = row.querySelector(".fiyat");
-
-        if (timeElement && seatsElement && priceElement) {
-          results.push({
-            time: timeElement.textContent.trim(),
-            availableSeats: seatsElement.textContent.trim(),
-            price: priceElement.textContent.trim(),
-          });
-        }
-      });
-
-      return results;
-    });
-
-    // API response ve scraped verileri birleştir
     return {
-      tickets,
       apiResponse: trainData,
     };
   } catch (error) {
     console.error("Error during scraping:", error);
-    await page.screenshot({ path: "error.png" });
     throw error;
   } finally {
     await browser.close();
