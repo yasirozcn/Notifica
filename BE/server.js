@@ -13,8 +13,18 @@ const nodemailer = require("nodemailer");
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin: true,
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
 app.use(express.json());
+
+// OPTIONS isteklerini handle et
+app.options("*", cors());
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -63,44 +73,44 @@ async function sendEmail(to, ticketInfo) {
 
 // Web scraping function
 async function scrapeTickets(from, to, date) {
-  const browser = await puppeteer.launch({
-    headless: "new",
-    executablePath:
-      process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium",
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-gpu",
-    ],
-  });
-
-  const page = await browser.newPage();
-  let trainData = null;
+  let browser = null;
 
   try {
-    // Network isteğini dinlemeye başla
-    await page.setRequestInterception(true);
-
-    page.on("request", (request) => {
-      request.continue();
+    browser = await puppeteer.launch({
+      headless: "new",
+      executablePath:
+        process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium",
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+      ],
     });
 
+    const page = await browser.newPage();
+    let trainData = null;
+
+    // Request interception'ı kaldır
+    await page.setRequestInterception(false);
+
+    // Response listener'ı değiştir
     page.on("response", async (response) => {
-      if (response.url().includes("train-availability?environment=dev")) {
+      const url = response.url();
+      if (url.includes("train-availability")) {
         try {
-          const responseText = await response.text();
-          console.log("Raw train data response:", responseText);
-          trainData = JSON.parse(responseText);
+          // response.text() yerine response.json() kullanalım
+          trainData = await response.json().catch(() => null);
+          if (trainData) {
+            console.log("Train data captured successfully");
+          }
         } catch (error) {
           console.error("Error parsing response:", error);
         }
       }
     });
 
-    await page.setViewport({ width: 1280, height: 800 });
-
-    console.log("Navigating to TCDD website...");
+    // Sayfayı yükle ve form işlemlerini yap
     await page.goto(
       "https://ebilet.tcddtasimacilik.gov.tr/view/eybis/tnmGenel/tcddWebContent.jsf",
       {
@@ -109,97 +119,49 @@ async function scrapeTickets(from, to, date) {
       }
     );
 
-    console.log("Starting form fill with:", { from, to, date });
+    // Form doldurma işlemleri...
+    await page.waitForSelector("#fromTrainInput");
+    await page.type("#fromTrainInput", from);
+    await page.waitForSelector(".dropdown-item.station");
+    await page.click(".dropdown-item.station");
 
-    // Tarih formatını YYYY-MM-DD'ye çevir
+    await page.waitForSelector("#toTrainInput");
+    await page.type("#toTrainInput", to);
+    const stations = await page.$$(".dropdown-item.station");
+    await stations[1].click();
+
+    // Tarih seçimi
     const [day, month, year] = date.split(".");
     const formattedDate = `${year}-${month}-${day}`;
-    console.log("Date to select:", formattedDate);
 
-    // Takvim ikonuna tıkla
-    await page.waitForSelector(".form-control.calenderPurpleImg", {
-      visible: true,
-    });
+    await page.waitForSelector(".form-control.calenderPurpleImg");
     await page.click(".form-control.calenderPurpleImg");
+    await page.waitForSelector(".daterangepicker");
 
-    // Takvimin açılmasını bekle
-    await page.waitForSelector(".daterangepicker", { visible: true });
-
-    // İlgili tarihe sahip td'yi bul ve tıkla
     const dateSelector = `td[data-date="${formattedDate}"]`;
-    await page.waitForSelector(dateSelector, { visible: true });
+    await page.waitForSelector(dateSelector);
     await page.click(dateSelector);
 
-    console.log("Date selected successfully");
-    await page.screenshot({ path: "date.png" });
-
-    // Form değerlerini kontrol et
-    const formValues = await page.evaluate(() => ({
-      from: document.querySelector("#fromTrainInput").value,
-      to: document.querySelector("#toTrainInput").value,
-      date: document.querySelector(".departureDate").value,
-    }));
-
-    console.log("Final form values:", formValues);
-
-    // 1. Kalkış istasyonu işlemi
-    await page.waitForSelector("#fromTrainInput", { visible: true });
-    await page.click("#fromTrainInput");
-    await page.type("#fromTrainInput", from, { delay: 100 });
-
-    // Dropdown'ın yüklenmesini bekle
-    await page.waitForSelector(".dropdown-item.station", {
-      visible: true,
-      timeout: 5000,
-    });
-
-    // İlk dropdown öğesine tıkla
-    const fromStations = await page.$$(".dropdown-item.station");
-    if (fromStations.length > 0) {
-      await fromStations[0].click();
-      console.log("Clicked first departure station option");
-    } else {
-      throw new Error("No departure stations found in dropdown");
-    }
-    await page.screenshot({ path: "11.png" });
-
-    // Kısa bekleme
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // 2. Varış istasyonu işlemi
-    await page.screenshot({ path: "12.png" });
-
-    await page.waitForSelector("#toTrainInput", { visible: true });
-    await page.click("#toTrainInput");
-    await page.type("#toTrainInput", to, { delay: 100 });
-    await page.screenshot({ path: "13.png" });
-
-    // İlk dropdown öğesine tıkla
-    await page.screenshot({ path: "1.png" });
-
-    const toStations = await page.$$(".dropdown-item.station");
-    if (toStations.length > 0) {
-      await toStations[1].click();
-      console.log("Clicked first arrival station option");
-    } else {
-      throw new Error("No arrival stations found in dropdown");
-    }
-    await page.screenshot({ path: "14.png" });
-
-    // Arama butonuna tıkla ve response'u bekle
+    // Arama butonuna tıkla
     await page.click("#searchSeferButton");
 
-    // API yanıtının gelmesi için bekle
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    // Sonuçları bekle
+    await new Promise((resolve) => setTimeout(resolve, 8000));
 
-    return {
-      apiResponse: trainData,
-    };
+    // Veri kontrolü
+    if (!trainData) {
+      console.log("No train data received after search");
+      return { apiResponse: null };
+    }
+
+    return { apiResponse: trainData };
   } catch (error) {
-    console.error("Error during scraping:", error);
-    throw error;
+    console.error("Scraping error:", error);
+    return { apiResponse: null, error: error.message };
   } finally {
-    await browser.close();
+    if (browser) {
+      await browser.close();
+    }
   }
 }
 
@@ -259,21 +221,21 @@ app.get("/scrape-tickets", async (req, res) => {
   }
 
   try {
-    const tickets = await scrapeTickets(from, to, date);
+    const result = await scrapeTickets(from, to, date);
 
-    if (!tickets || tickets.length === 0) {
+    if (!result.apiResponse) {
       return res.status(404).json({
-        error: "No tickets found",
+        error: result.error || "No tickets found",
         params: { from, to, date },
       });
     }
 
-    res.json(tickets);
+    res.json(result);
   } catch (error) {
-    console.error("Error in /scrape-tickets endpoint:", error);
+    console.error("API error:", error);
     res.status(500).json({
-      error: error.message,
-      details: error.toString(),
+      error: "Bilet arama işlemi sırasında bir hata oluştu",
+      details: error.message,
     });
   }
 });

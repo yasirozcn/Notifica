@@ -20,6 +20,8 @@ const App = () => {
   const [journeys, setJourneys] = useState(null);
   const [selectedHours, setSelectedHours] = useState([]);
   const [business, setBusiness] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadingStatus, setLoadingStatus] = useState('');
 
   const toggleHandler = () => {
     setBusiness((prevState) => !prevState);
@@ -72,6 +74,9 @@ const App = () => {
       return;
     }
 
+    setLoading(true);
+    setLoadingStatus('İstek hazırlanıyor...');
+
     try {
       const formattedDate = formatDateToTCDDFormat(date);
       console.log('Sending request with:', {
@@ -86,6 +91,9 @@ const App = () => {
           to: selectedStations.inisIstasyonAdi,
           date: formattedDate,
         },
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
 
       console.log('API Response:', response.data);
@@ -97,6 +105,9 @@ const App = () => {
         'Seferler alınırken bir hata oluştu: ' +
           (error.response?.data?.error || error.message)
       );
+    } finally {
+      setLoading(false);
+      setLoadingStatus('');
     }
   }
 
@@ -124,11 +135,28 @@ const App = () => {
         </div>
         <button
           onClick={fetchJourneys}
-          className="bg-gray-800 hover:bg-gray-900 text-white font-bold py-2 px-4 rounded"
+          disabled={loading}
+          className={`bg-gray-800 hover:bg-gray-900 text-white font-bold py-2 px-4 rounded ${
+            loading ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
         >
-          Find Journeys
+          {loading ? 'Aranıyor...' : 'Find Journeys'}
         </button>
-        {journeys && <HourChoices journeys={journeys} />}
+
+        {loading && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl">
+              <div className="flex flex-col items-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+                <p className="text-lg font-semibold text-blue-600">
+                  Seferler aranıyor...
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!loading && journeys && <HourChoices journeys={journeys} />}
       </div>
     </div>
   );
