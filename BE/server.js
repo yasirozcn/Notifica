@@ -8,6 +8,7 @@ const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const Alarm = require("./models/Alarm");
 const nodemailer = require("nodemailer");
+const debug = require("debug")("app:server");
 
 // Load environment variables
 dotenv.config();
@@ -15,10 +16,10 @@ dotenv.config();
 const app = express();
 app.use(
   cors({
-    origin: true,
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    credentials: true,
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
   })
 );
 app.use(express.json());
@@ -28,8 +29,9 @@ app.options("*", cors());
 
 // Request logging middleware
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);
-  console.log("Request Body:", req.body);
+  debug(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  debug("Headers:", req.headers);
+  debug("Query:", req.query);
   next();
 });
 
@@ -209,11 +211,13 @@ cron.schedule("*/15 * * * *", async () => {
 });
 
 app.get("/scrape-tickets", async (req, res) => {
+  debug("Received scrape-tickets request");
   const { from, to, date } = req.query;
 
-  console.log("Received request with params:", { from, to, date });
+  debug("Request parameters:", { from, to, date });
 
   if (!from || !to || !date) {
+    console.log("Missing parameters in request");
     return res.status(400).json({
       error: "Missing required parameters",
       received: { from, to, date },
@@ -221,18 +225,27 @@ app.get("/scrape-tickets", async (req, res) => {
   }
 
   try {
+    console.log("Starting scraping process...");
     const result = await scrapeTickets(from, to, date);
+    console.log("Scraping completed:", result ? "Success" : "No data");
 
     if (!result.apiResponse) {
+      console.log("No tickets found");
       return res.status(404).json({
         error: result.error || "No tickets found",
         params: { from, to, date },
       });
     }
 
+    console.log("Sending response to client");
     res.json(result);
   } catch (error) {
-    console.error("API error:", error);
+    console.error("Detailed error in /scrape-tickets:", {
+      message: error.message,
+      stack: error.stack,
+      params: { from, to, date },
+    });
+
     res.status(500).json({
       error: "Bilet arama işlemi sırasında bir hata oluştu",
       details: error.message,

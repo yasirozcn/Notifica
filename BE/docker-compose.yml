@@ -11,8 +11,10 @@ services:
       - EMAIL_PASSWORD=${EMAIL_PASSWORD}
       - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
       - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+      - FRONTEND_URL=http://localhost:5173
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
     command: npm run dev
-    network_mode: "host"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

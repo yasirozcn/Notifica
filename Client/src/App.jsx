@@ -10,6 +10,14 @@ import axios from 'axios';
 
 const SEFER_URL = 'https://api-yebsp.tcddtasimacilik.gov.tr/sefer/seferSorgula';
 
+const api = axios.create({
+  baseURL: 'http://localhost:8080',
+  timeout: 120000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 const App = () => {
   const [stations, setStations] = useState({});
   const [selectedStations, setSelectedStations] = useState({
@@ -85,26 +93,41 @@ const App = () => {
         date: formattedDate,
       });
 
-      const response = await axios.get('http://localhost:8080/scrape-tickets', {
+      const response = await api.get('/scrape-tickets', {
         params: {
           from: selectedStations.binisIstasyonAdi,
           to: selectedStations.inisIstasyonAdi,
           date: formattedDate,
         },
-        headers: {
-          'Content-Type': 'application/json',
-        },
       });
 
-      console.log('API Response:', response.data);
-      setJourneys(response.data);
+      if (response.data) {
+        console.log('API Response:', response.data);
+        setJourneys(response.data);
+      }
     } catch (error) {
-      console.error('Error fetching journeys:', error);
-      setJourneys(null);
-      alert(
-        'Seferler alınırken bir hata oluştu: ' +
-          (error.response?.data?.error || error.message)
-      );
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        response: error.response,
+        request: error.request,
+        config: error.config,
+      });
+
+      let errorMessage = 'Seferler alınırken bir hata oluştu: ';
+      if (error.response) {
+        // Server yanıt verdi ama hata kodu döndü
+        errorMessage += error.response.data.error || error.message;
+      } else if (error.request) {
+        // İstek yapıldı ama yanıt alınamadı
+        errorMessage +=
+          'Sunucuya ulaşılamıyor. Lütfen internet bağlantınızı kontrol edin.';
+      } else {
+        // İstek oluşturulurken hata oluştu
+        errorMessage += error.message;
+      }
+
+      alert(errorMessage);
     } finally {
       setLoading(false);
       setLoadingStatus('');
@@ -113,16 +136,32 @@ const App = () => {
 
   return (
     <div className="flex flex-col h-screen items-center">
-      <div>
+      <div className="flex flex-col gap-4 w-full max-w-2xl mx-auto p-6">
         <StationsSelect
           stations={stations}
           selectedStations={selectedStations}
           setSelectedStations={setSelectedStations}
         />
-        <input
-          type="date"
-          onChange={(e) => setDate(formatDateToTCDDFormat(e.target.value))}
-        />
+
+        <div className="flex flex-col">
+          <label className="text-sm font-medium text-gray-600 mb-1">
+            Journey Date
+          </label>
+          <input
+            type="date"
+            onChange={(e) => setDate(formatDateToTCDDFormat(e.target.value))}
+            className="
+              w-full px-4 py-2
+              border-2 border-gray-200 rounded-lg
+              focus:border-[#9ebf3f] focus:ring-[#9ebf3f]
+              text-gray-700
+              transition-colors duration-200
+              hover:border-[#9ebf3f]
+            "
+            min={new Date().toISOString().split('T')[0]}
+          />
+        </div>
+
         <div className="toggle-container" onClick={toggleHandler}>
           <div className={`toggle-switch ${business ? 'active' : ''}`}>
             <div className="toggle-knob"></div>
@@ -133,31 +172,38 @@ const App = () => {
               : 'Business Class Tickets: OFF'}
           </span>
         </div>
+
         <button
           onClick={fetchJourneys}
           disabled={loading}
-          className={`bg-gray-800 hover:bg-gray-900 text-white font-bold py-2 px-4 rounded ${
-            loading ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
+          className={`
+            w-full py-3 px-6
+            bg-[#9ebf3f] hover:bg-[#8ba835]
+            text-white font-semibold
+            rounded-lg
+            transition-colors duration-200
+            shadow-md hover:shadow-lg
+            disabled:opacity-50 disabled:cursor-not-allowed
+          `}
         >
-          {loading ? 'Aranıyor...' : 'Find Journeys'}
+          {loading ? 'Searching...' : 'Find Journeys'}
         </button>
+      </div>
 
-        {loading && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg shadow-xl">
-              <div className="flex flex-col items-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-                <p className="text-lg font-semibold text-blue-600">
-                  Seferler aranıyor...
-                </p>
-              </div>
+      {loading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl">
+            <div className="flex flex-col items-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+              <p className="text-lg font-semibold text-blue-600">
+                Seferler aranıyor...
+              </p>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {!loading && journeys && <HourChoices journeys={journeys} />}
-      </div>
+      {!loading && journeys && <HourChoices journeys={journeys} />}
     </div>
   );
 };

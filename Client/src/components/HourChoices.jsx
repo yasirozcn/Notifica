@@ -65,7 +65,7 @@ const HourChoices = ({ journeys }) => {
                     Varış: {train.arrivalTime}
                   </span>
                   <span className="ml-4 text-blue-600 font-semibold">
-                    Available Seats: {totalAvailability}
+                    Boş Koltuk: {totalAvailability}
                   </span>
                 </div>
                 <div className="text-right">
@@ -84,7 +84,7 @@ const HourChoices = ({ journeys }) => {
           onClick={handleCreateAlarm}
           className="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors duration-200"
         >
-          Set Alarm for {selectedTrains.length} trains
+          {selectedTrains.length} Sefer İçin Alarm Kur
         </button>
       )}
     </div>
