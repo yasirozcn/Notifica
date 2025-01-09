@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { ClerkProvider } from '@clerk/clerk-react';
-import AppContent from './AppContent'; // Ayrı bir bileşene taşıyoruz
+import AppContent from './AppContent';
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -13,11 +13,10 @@ export default function RootLayout() {
 
   return (
     <ClerkProvider
-      routerPush={(to) => navigate(to)}
-      routerReplace={(to) => navigate(to, { replace: true })}
       publishableKey={PUBLISHABLE_KEY}
+      navigate={(to) => navigate(to)}
     >
-      <AppContent /> {/* Yönlendirme mantığını burada kullanacağız */}
+      <AppContent />
     </ClerkProvider>
   );
 }

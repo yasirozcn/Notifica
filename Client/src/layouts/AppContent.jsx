@@ -5,23 +5,21 @@ import { useUser } from '@clerk/clerk-react';
 import NavBar from '../components/NavBar';
 
 export default function AppContent() {
-  const { isSignedIn } = useUser(); // Kullanıcı oturum durumu
+  const { isSignedIn } = useUser();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (isSignedIn) {
-      navigate('/alarm'); // Kullanıcı giriş yapmışsa yönlendir
+      navigate('/alarm');
     }
   }, [isSignedIn, navigate]);
 
   return (
-    <>
-      <header className="header">
-        <NavBar />
-      </header>
-      <main>
+    <div className="min-h-screen">
+      <NavBar />
+      <div className="pt-[64px]">
         <Outlet />
-      </main>
-    </>
+      </div>
+    </div>
   );
 }
