@@ -11,6 +11,7 @@ import App from './App';
 import Home from './routes/Home';
 import SignInPage from './routes/SignInPage';
 import SignUpPage from './routes/SignUpPage';
+import VisaAlarm from './routes/VisaAlarm';
 
 const router = createBrowserRouter([
   {
@@ -20,6 +21,7 @@ const router = createBrowserRouter([
       { path: '/alarm', element: <App /> },
       { path: '/sign-in/*', element: <SignInPage /> },
       { path: '/sign-up/*', element: <SignUpPage /> },
+      { path: '/visa-alarm', element: <VisaAlarm /> },
     ],
   },
 ]);

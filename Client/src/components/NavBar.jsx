@@ -34,8 +34,8 @@ function NavBar() {
                 >
                   TCDD Bilet Notifica
                 </li>
-                <li className="cursor-pointer text-black font-bold">
-                  Vize Notifica (coming soon)
+                <li className="text-black font-bold opacity-50 cursor-not-allowed">
+                  Vize Notifica (Coming Soon)
                 </li>
               </ul>
             </SignedIn>
@@ -47,11 +47,8 @@ function NavBar() {
                 >
                   TCDD Bilet Notifica
                 </li>
-                <li
-                  onClick={() => navigate('/sign-in')}
-                  className="cursor-pointer"
-                >
-                  Vize Notifica (coming soon)
+                <li className="opacity-50 cursor-not-allowed">
+                  Vize Notifica (Coming Soon)
                 </li>
               </ul>
             </SignedOut>
@@ -141,8 +138,11 @@ function NavBar() {
                 >
                   TCDD Bilet Notifica
                 </button>
-                <button className="w-full text-left px-3 py-2 text-[#1E2203] hover:bg-gray-100 rounded-lg transition-colors duration-200">
-                  Vize Notifica (coming soon)
+                <button
+                  disabled
+                  className="w-full text-left px-3 py-2 text-[#1E2203] opacity-50 cursor-not-allowed"
+                >
+                  Vize Notifica (Coming Soon)
                 </button>
               </SignedIn>
               <SignedOut>
@@ -156,13 +156,10 @@ function NavBar() {
                   TCDD Bilet Notifica
                 </button>
                 <button
-                  onClick={() => {
-                    navigate('/sign-in');
-                    setIsMenuOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-[#1E2203] hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                  disabled
+                  className="w-full text-left px-3 py-2 text-[#1E2203] opacity-50 cursor-not-allowed"
                 >
-                  Vize Notifica (coming soon)
+                  Vize Notifica (Coming Soon)
                 </button>
               </SignedOut>
             </div>

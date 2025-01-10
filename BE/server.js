@@ -9,6 +9,7 @@ const dotenv = require("dotenv");
 const Alarm = require("./models/Alarm");
 const nodemailer = require("nodemailer");
 const debug = require("debug")("app:server");
+const axios = require("axios");
 
 // Load environment variables
 dotenv.config();
@@ -250,6 +251,208 @@ app.get("/scrape-tickets", async (req, res) => {
       error: "Bilet arama işlemi sırasında bir hata oluştu",
       details: error.message,
     });
+  }
+});
+
+// Vize randevusu kontrol fonksiyonu
+async function checkVisaAppointment(country, city, visaType) {
+  let browser = null;
+
+  try {
+    browser = await puppeteer.launch({
+      headless: "new",
+      executablePath:
+        process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium",
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+      ],
+    });
+
+    const page = await browser.newPage();
+
+    // API tabanlı kontrol için
+    await page.setRequestInterception(true);
+
+    page.on("request", async (request) => {
+      if (country === "Netherlands") {
+        // VFS Global API endpoint'i
+        const apiUrl =
+          "https://appointment.vfsglobal.com/TUR/tr/NLD/api/appointments";
+
+        const headers = {
+          accept: "application/json",
+          "accept-language": "tr-TR,tr;q=0.9",
+          "content-type": "application/json",
+          origin: "https://appointment.vfsglobal.com",
+          referer: "https://appointment.vfsglobal.com/TUR/tr/NLD",
+        };
+
+        try {
+          const response = await axios.get(apiUrl, { headers });
+          return response.data;
+        } catch (error) {
+          console.error("API request failed:", error);
+          return null;
+        }
+      } else if (country === "Germany") {
+        // Alman konsolosluğu için özel endpoint
+        const apiUrl =
+          "https://service2.diplo.de/rktermin/extern/appointment_showMonth.do";
+        const params = {
+          locationCode: city,
+          realmId: "543",
+          categoryId: "375", // Vize tipi ID'si
+        };
+
+        try {
+          const response = await axios.get(apiUrl, { params });
+          return response.data;
+        } catch (error) {
+          console.error("API request failed:", error);
+          return null;
+        }
+      }
+
+      request.continue();
+    });
+
+    // Her ülke için özel kontrol mantığı
+    let availableSlots = [];
+    const today = new Date();
+
+    // Gelecek 30 gün için kontrol
+    for (let i = 0; i < 30; i++) {
+      const checkDate = new Date(today);
+      checkDate.setDate(today.getDate() + i);
+
+      const formattedDate = checkDate.toISOString().split("T")[0];
+
+      switch (country) {
+        case "Netherlands":
+          try {
+            const response = await page.evaluate(async (date) => {
+              const res = await fetch(
+                `https://appointment.vfsglobal.com/TUR/tr/NLD/api/slots?date=${date}`
+              );
+              return await res.json();
+            }, formattedDate);
+
+            if (response && response.slots && response.slots.length > 0) {
+              availableSlots.push({
+                date: formattedDate,
+                slots: response.slots,
+              });
+            }
+          } catch (error) {
+            console.error(`Error checking date ${formattedDate}:`, error);
+          }
+          break;
+
+        case "Germany":
+          try {
+            const slots = await page.evaluate((date) => {
+              const availableDates = document.querySelectorAll(".buchbar");
+              return Array.from(availableDates).map((date) =>
+                date.getAttribute("data-date")
+              );
+            });
+
+            if (slots.length > 0) {
+              availableSlots.push({
+                date: formattedDate,
+                slots: slots,
+              });
+            }
+          } catch (error) {
+            console.error(`Error checking date ${formattedDate}:`, error);
+          }
+          break;
+
+        default:
+          // Test data
+          if (Math.random() > 0.8) {
+            // %20 olasılıkla randevu var
+            availableSlots.push({
+              date: formattedDate,
+              slots: [`Test slot for ${formattedDate}`],
+            });
+          }
+      }
+    }
+
+    return {
+      success: true,
+      country,
+      city,
+      visaType,
+      availableSlots,
+      message:
+        availableSlots.length > 0
+          ? `${availableSlots.length} günde randevu bulundu`
+          : "Uygun randevu bulunamadı",
+      details: availableSlots,
+    };
+  } catch (error) {
+    console.error("Visa appointment check error:", error);
+    return {
+      success: false,
+      error: error.message,
+      country,
+      city,
+      visaType,
+    };
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
+}
+
+// Yeni endpoint
+app.get("/check-visa-appointment", async (req, res) => {
+  const { country, city, visaType } = req.query;
+
+  if (!country || !city || !visaType) {
+    return res.status(400).json({
+      error: "Missing required parameters",
+      received: { country, city, visaType },
+    });
+  }
+
+  try {
+    const result = await checkVisaAppointment(country, city, visaType);
+    res.json(result);
+  } catch (error) {
+    console.error("Error in /check-visa-appointment:", error);
+    res.status(500).json({
+      error: "Randevu kontrolü sırasında bir hata oluştu",
+      details: error.message,
+    });
+  }
+});
+
+// Vize randevusu alarm oluşturma endpoint'i
+app.post("/create-visa-alarm", async (req, res) => {
+  const { userId, country, city, visaType, email } = req.body;
+
+  try {
+    const alarm = new Alarm({
+      userId,
+      type: "visa",
+      country,
+      city,
+      visaType,
+      email,
+      isActive: true,
+    });
+
+    await alarm.save();
+    res.json({ success: true, alarmId: alarm._id });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 

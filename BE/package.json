@@ -28,7 +28,8 @@
     "mongoose": "^6.13.5",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.16",
-    "puppeteer-core": "^23.11.1"
+    "puppeteer-core": "^23.11.1",
+    "axios": "^1.6.7"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

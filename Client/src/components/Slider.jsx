@@ -4,60 +4,56 @@ import React, { useRef, useEffect, useState } from 'react';
 
 const Slider = ({ images, speed = 1 }) => {
   const sliderRef = useRef(null);
-  const scrollAmount = useRef(0);
+  const [translateX, setTranslateX] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const animationRef = useRef(null); // requestAnimationFrame referansı
+  const animationFrameId = useRef(null);
 
   useEffect(() => {
     const slider = sliderRef.current;
+    if (!slider) return;
 
-    const animate = () => {
-      if (!isPaused && slider) {
-        scrollAmount.current += speed; // speed negatif olabilir
+    let lastTime = 0;
+    const animate = (currentTime) => {
+      if (!lastTime) lastTime = currentTime;
+      const delta = currentTime - lastTime;
+      lastTime = currentTime;
 
-        // Sonsuz döngü efekti
-        if (speed > 0 && scrollAmount.current >= slider.scrollWidth / 2) {
-          scrollAmount.current = 0;
-        } else if (speed < 0 && scrollAmount.current <= 0) {
-          scrollAmount.current = slider.scrollWidth / 2;
-        }
-
-        slider.style.transform = `translateX(-${scrollAmount.current}px)`;
+      if (!isPaused) {
+        setTranslateX((prev) => {
+          const next = prev + speed * (delta * 0.1);
+          const max = slider.scrollWidth / 2;
+          return next >= max ? 0 : next <= 0 ? max : next;
+        });
       }
-      animationRef.current = requestAnimationFrame(animate); // Yeni animasyonu sakla
+
+      animationFrameId.current = requestAnimationFrame(animate);
     };
 
-    // İlk animasyonu başlat
-    animationRef.current = requestAnimationFrame(animate);
-
-    return () => cancelAnimationFrame(animationRef.current); // Temizlik işlemi
+    animationFrameId.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrameId.current);
   }, [speed, isPaused]);
 
   return (
     <div
       className="overflow-hidden relative w-full h-64"
-      onMouseEnter={() => setIsPaused(true)} // Hover durumunda durdur
-      onMouseLeave={() => setIsPaused(false)} // Hover bittiğinde devam ettir
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
     >
       <div
         ref={sliderRef}
         className="flex w-max"
-        style={{ whiteSpace: 'nowrap' }}
+        style={{ transform: `translateX(-${translateX}px)` }}
       >
-        {[...images, ...images].map(
-          (
-            image,
-            index // Sonsuzluk için görselleri iki kere döngüye sok
-          ) => (
-            <div key={index} className="flex-shrink-0">
-              <img
-                src={image}
-                alt={`Slide ${index}`}
-                className="w-auto h-64 object-cover"
-              />
-            </div>
-          )
-        )}
+        {[...images, ...images].map((image, index) => (
+          <div key={index} className="flex-shrink-0">
+            <img
+              src={image}
+              alt={`Slide ${index}`}
+              className="w-auto h-64 object-cover"
+              loading="lazy"
+            />
+          </div>
+        ))}
       </div>
     </div>
   );

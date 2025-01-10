@@ -8,16 +8,18 @@ import Features from '../components/Features';
 import PricingPlans from '../components/PricingPlans';
 import ContactSection from '../components/ContactSection';
 import Footer from '../components/Footer';
+import uçak from '../assets/images/uçak1.jpg';
+import england from '../assets/images/england.jpg';
+import plane from '../assets/images/plane.jpg';
+import train1 from '../assets/images/train1.jpg';
+import train2 from '../assets/images/train2.jpg';
+import oldTrain from '../assets/images/old-train.jpg';
 
 function Home() {
   const navigate = useNavigate();
   const { isSignedIn } = useAuth();
   const [activePlan, setActivePlan] = useState('monthly');
-  const images = [
-    'https://via.placeholder.com/800x400?text=Slide+1',
-    'https://via.placeholder.com/800x400?text=Slide+2',
-    'https://via.placeholder.com/800x400?text=Slide+3',
-  ];
+  const images = [uçak, england, plane, train1, train2];
 
   const handleNavigation = () => {
     if (isSignedIn) {
@@ -32,15 +34,15 @@ function Home() {
       <Hero handleNavigation={handleNavigation} />
 
       <div className="mt-14 flex flex-col gap-10 overflow-hidden">
-        <Slider images={images} speed={1.5} />
-        <Slider images={images} speed={-1.5} />
+        <Slider images={images} speed={1.0} />
+        <Slider images={images} speed={-1.0} />
       </div>
 
       <div className="mt-7 grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-20 p-4 md:p-20">
         <div className="h-full max-h-80 w-full">
           <img
             className="rounded-[16px] h-full w-full object-cover aspect-[4/3] max-h-80"
-            src="https://via.placeholder.com/800x400?text=Slide+1"
+            src={oldTrain}
             alt="slide1"
           />
         </div>

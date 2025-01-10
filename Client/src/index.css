@@ -16,3 +16,16 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(calc(-300px * 6 - 1rem * 6));
+  }
+}
+
+.slider {
+  width: fit-content;
+}
