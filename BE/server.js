@@ -91,10 +91,51 @@ async function scrapeTickets(from, to, date) {
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         "--disable-gpu",
+        "--window-size=1024,768",
+        "--disable-web-security",
+        "--disable-features=IsolateOrigins,site-per-process",
+        "--allow-running-insecure-content",
+        "--disable-blink-features=AutomationControlled",
+        "--ignore-certificate-errors",
+        "--ignore-certificate-errors-spki-list",
+        "--enable-features=NetworkService",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--single-process",
+        "--disable-extensions",
       ],
+      defaultViewport: {
+        width: 1024,
+        height: 768,
+      },
     });
 
     const page = await browser.newPage();
+
+    // Sayfa yüklenme stratejisini değiştir
+    await page.setDefaultNavigationTimeout(90000);
+    await page.setDefaultTimeout(90000);
+
+    // JavaScript'i devre dışı bırak ve tekrar etkinleştir
+    await page.setJavaScriptEnabled(false);
+    await page.setJavaScriptEnabled(true);
+
+    // Extra headers ekle
+    await page.setExtraHTTPHeaders({
+      "Accept-Language": "en-US,en;q=0.9",
+      Accept:
+        "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+      "Accept-Encoding": "gzip, deflate, br",
+      Connection: "keep-alive",
+      "Upgrade-Insecure-Requests": "1",
+      "Cache-Control": "max-age=0",
+    });
+
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    );
+
     let trainData = null;
 
     // Response listener'ı güçlendir
@@ -116,34 +157,67 @@ async function scrapeTickets(from, to, date) {
 
     console.log("Navigating to TCDD website...");
     await page.goto(
-      "https://ebilet.tcddtasimacilik.gov.tr/view/eybis/tnmGenel/tcddWebContent.jsf"
+      "https://ebilet.tcddtasimacilik.gov.tr/view/eybis/tnmGenel/tcddWebContent.jsf",
+      { waitUntil: "networkidle0" }
     );
 
-    console.log("Waiting for form elements...");
-    await page.waitForSelector("#fromTrainInput");
-    await page.type("#fromTrainInput", from);
-    await page.waitForSelector(".dropdown-item.station");
-    await page.click(".dropdown-item.station");
+    // Sayfanın tamamen yüklenmesini bekle
+    await page.waitForFunction(() => document.readyState === "complete");
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    await page.waitForSelector("#toTrainInput");
+    console.log("Waiting for form elements...");
+
+    // Kalkış istasyonu
+    console.log("Entering departure station:", from);
+    await page.waitForSelector("#fromTrainInput", { visible: true });
+    await page.evaluate(() =>
+      document.querySelector("#fromTrainInput").click()
+    );
+    await page.type("#fromTrainInput", from);
+    await page.waitForSelector(".dropdown-item.station", { visible: true });
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await page.evaluate(() => {
+      const elements = document.querySelectorAll(".dropdown-item.station");
+      if (elements.length > 0) elements[0].click();
+    });
+
+    // Varış istasyonu
+    console.log("Entering arrival station:", to);
+    await page.waitForSelector("#toTrainInput", { visible: true });
+    await page.evaluate(() => document.querySelector("#toTrainInput").click());
     await page.type("#toTrainInput", to);
-    const stations = await page.$$(".dropdown-item.station");
-    await stations[1].click();
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await page.evaluate(() => {
+      const elements = document.querySelectorAll(".dropdown-item.station");
+      if (elements.length > 1) elements[1].click();
+    });
 
     // Tarih seçimi
+    console.log("Selecting date:", date);
     const [day, month, year] = date.split(".");
     const formattedDate = `${year}-${month}-${day}`;
 
-    await page.waitForSelector(".form-control.calenderPurpleImg");
-    await page.click(".form-control.calenderPurpleImg");
-    await page.waitForSelector(".daterangepicker");
+    await page.waitForSelector(".form-control.calenderPurpleImg", {
+      visible: true,
+    });
+    await page.evaluate(() =>
+      document.querySelector(".form-control.calenderPurpleImg").click()
+    );
+    await page.waitForSelector(".daterangepicker", { visible: true });
 
     const dateSelector = `td[data-date="${formattedDate}"]`;
-    await page.waitForSelector(dateSelector);
-    await page.click(dateSelector);
+    await page.waitForSelector(dateSelector, { visible: true });
+    await page.evaluate(
+      (selector) => document.querySelector(selector).click(),
+      dateSelector
+    );
 
+    // Arama butonu
     console.log("Clicking search button...");
-    await page.click("#searchSeferButton");
+    await page.waitForSelector("#searchSeferButton", { visible: true });
+    await page.evaluate(() =>
+      document.querySelector("#searchSeferButton").click()
+    );
 
     // Sonuçları bekle
     console.log("Waiting for results...");
