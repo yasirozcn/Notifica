@@ -99,11 +99,6 @@ async function scrapeTickets(from, to, date) {
         "--ignore-certificate-errors",
         "--ignore-certificate-errors-spki-list",
         "--enable-features=NetworkService",
-        "--disable-accelerated-2d-canvas",
-        "--no-first-run",
-        "--no-zygote",
-        "--single-process",
-        "--disable-extensions",
       ],
       defaultViewport: {
         width: 1024,
@@ -139,27 +134,53 @@ async function scrapeTickets(from, to, date) {
     let trainData = null;
 
     // Response listener'ı güçlendir
-    await page.setRequestInterception(false);
+    await page.setRequestInterception(true);
+    page.on("request", (request) => {
+      console.log("Outgoing request URL:", request.url());
+      request.continue();
+    });
+
     page.on("response", async (response) => {
       const url = response.url();
-      if (url.includes("train-availability")) {
+      console.log("Incoming response URL:", url);
+
+      // Hem dev hem prod environment'ını kontrol et
+      if (
+        url.includes("train-availability?environment=dev") ||
+        url.includes("train-availability")
+      ) {
         try {
-          console.log("Train availability response intercepted");
+          console.log("Train availability response intercepted from:", url);
           const responseText = await response.text();
-          console.log("Response text received");
+          console.log(
+            "Raw train data response:",
+            responseText.substring(0, 200)
+          ); // İlk 200 karakteri logla
           trainData = JSON.parse(responseText);
-          console.log("Response parsed successfully");
+          console.log("Train data parsed successfully");
         } catch (error) {
           console.error("Error parsing response:", error);
+          console.error("Response status:", response.status());
+          console.error("Response headers:", response.headers());
         }
       }
     });
 
+    // Sayfaya gitmeden önce network dinlemeyi başlat
     console.log("Navigating to TCDD website...");
-    await page.goto(
+    const response = await page.goto(
       "https://ebilet.tcddtasimacilik.gov.tr/view/eybis/tnmGenel/tcddWebContent.jsf",
-      { waitUntil: "networkidle0" }
+      {
+        waitUntil: "networkidle0",
+        timeout: 90000,
+      }
     );
+
+    // Sayfa yükleme durumunu kontrol et
+    console.log("Page load status:", response.status());
+    if (!response.ok()) {
+      console.error("Page load failed:", response.statusText());
+    }
 
     // Sayfanın tamamen yüklenmesini bekle
     await page.waitForFunction(() => document.readyState === "complete");
@@ -357,11 +378,6 @@ app.get("/search-flights", async (req, res) => {
         "--ignore-certificate-errors",
         "--ignore-certificate-errors-spki-list",
         "--enable-features=NetworkService",
-        "--disable-accelerated-2d-canvas",
-        "--no-first-run",
-        "--no-zygote",
-        "--single-process",
-        "--disable-extensions",
       ],
       defaultViewport: {
         width: 1024,
