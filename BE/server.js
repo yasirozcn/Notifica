@@ -9,7 +9,6 @@ const dotenv = require("dotenv");
 const Alarm = require("./models/Alarm");
 const nodemailer = require("nodemailer");
 const debug = require("debug")("app:server");
-const axios = require("axios");
 
 // Load environment variables
 dotenv.config();
@@ -253,206 +252,236 @@ app.get("/scrape-tickets", async (req, res) => {
     });
   }
 });
+// Uçak bileti arama endpoint'i
+app.get("/search-flights", async (req, res) => {
+  const { departure, arrival, date } = req.query;
 
-// Vize randevusu kontrol fonksiyonu
-async function checkVisaAppointment(country, city, visaType) {
-  let browser = null;
+  if (!departure || !arrival || !date) {
+    return res.status(400).json({
+      error: "Eksik parametreler",
+      received: { departure, arrival, date },
+    });
+  }
 
+  let browser;
   try {
+    console.log("Tarayıcı başlatılıyor...");
     browser = await puppeteer.launch({
-      headless: "new",
-      executablePath:
-        process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium",
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-      ],
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || chromium.path,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
 
     const page = await browser.newPage();
-
-    // API tabanlı kontrol için
-    await page.setRequestInterception(true);
-
-    page.on("request", async (request) => {
-      if (country === "Netherlands") {
-        // VFS Global API endpoint'i
-        const apiUrl =
-          "https://appointment.vfsglobal.com/TUR/tr/NLD/api/appointments";
-
-        const headers = {
-          accept: "application/json",
-          "accept-language": "tr-TR,tr;q=0.9",
-          "content-type": "application/json",
-          origin: "https://appointment.vfsglobal.com",
-          referer: "https://appointment.vfsglobal.com/TUR/tr/NLD",
-        };
-
-        try {
-          const response = await axios.get(apiUrl, { headers });
-          return response.data;
-        } catch (error) {
-          console.error("API request failed:", error);
-          return null;
-        }
-      } else if (country === "Germany") {
-        // Alman konsolosluğu için özel endpoint
-        const apiUrl =
-          "https://service2.diplo.de/rktermin/extern/appointment_showMonth.do";
-        const params = {
-          locationCode: city,
-          realmId: "543",
-          categoryId: "375", // Vize tipi ID'si
-        };
-
-        try {
-          const response = await axios.get(apiUrl, { params });
-          return response.data;
-        } catch (error) {
-          console.error("API request failed:", error);
-          return null;
-        }
-      }
-
-      request.continue();
+    console.log("Enuygun.com'a gidiliyor...");
+    await page.goto("https://www.enuygun.com/ucak-bileti/", {
+      waitUntil: "networkidle0",
+      timeout: 60000,
     });
 
-    // Her ülke için özel kontrol mantığı
-    let availableSlots = [];
-    const today = new Date();
+    // Çerez popup kontrolü
+    console.log("Çerez popup kontrolü yapılıyor...");
+    try {
+      await page.waitForSelector("#onetrust-button-group", { timeout: 5000 });
+      console.log("Çerez popup'ı bulundu, kapatılıyor...");
+      await page.click("#onetrust-accept-btn-handler");
+      // Cookie tercihlerinin yüklenmesini bekle
+      await page.evaluate(
+        () => new Promise((resolve) => setTimeout(resolve, 500))
+      );
+      console.log("Çerez popup'ı kapatıldı");
+    } catch (error) {
+      console.log(
+        "Çerez popup'ı bulunamadı veya işlem başarısız, devam ediliyor...",
+        error.message
+      );
+    }
 
-    // Gelecek 30 gün için kontrol
-    for (let i = 0; i < 30; i++) {
-      const checkDate = new Date(today);
-      checkDate.setDate(today.getDate() + i);
+    // Kalkış havaalanı seçimi
+    console.log("Kalkış havaalanı giriliyor:", departure);
+    await page.waitForSelector(
+      '[data-testid="endesign-flight-origin-autosuggestion-input"]'
+    );
+    // Önce inputa tıkla
+    await page.click(
+      '[data-testid="endesign-flight-origin-autosuggestion-input"]'
+    );
+    await page.evaluate(
+      () => new Promise((resolve) => setTimeout(resolve, 500))
+    );
+    // Sonra değeri yaz
+    await page.type(
+      '[data-testid="endesign-flight-origin-autosuggestion-input"]',
+      departure
+    );
+    // Enter yerine dropdown'dan seçim yap
+    await page.waitForSelector(
+      '[data-testid="endesign-flight-origin-autosuggestion-option-item-0"]',
+      { timeout: 5000 }
+    );
+    await page.click(
+      '[data-testid="endesign-flight-origin-autosuggestion-option-item-0"]'
+    );
 
-      const formattedDate = checkDate.toISOString().split("T")[0];
+    // Varış havaalanı seçimi
+    console.log("Varış havaalanı giriliyor:", arrival);
+    await page.waitForSelector(
+      '[data-testid="endesign-flight-destination-autosuggestion-input"]'
+    );
+    // Önce inputa tıkla
+    await page.click(
+      '[data-testid="endesign-flight-destination-autosuggestion-input"]'
+    );
+    await page.evaluate(
+      () => new Promise((resolve) => setTimeout(resolve, 500))
+    );
+    // Sonra değeri yaz
+    await page.type(
+      '[data-testid="endesign-flight-destination-autosuggestion-input"]',
+      arrival
+    );
 
-      switch (country) {
-        case "Netherlands":
-          try {
-            const response = await page.evaluate(async (date) => {
-              const res = await fetch(
-                `https://appointment.vfsglobal.com/TUR/tr/NLD/api/slots?date=${date}`
-              );
-              return await res.json();
-            }, formattedDate);
+    // Enter yerine dropdown'dan seçim yap
+    await page.waitForSelector(
+      '[data-testid="endesign-flight-destination-autosuggestion-option-item-0"]',
+      { timeout: 5000 }
+    );
+    await page.click(
+      '[data-testid="endesign-flight-destination-autosuggestion-option-item-0"]'
+    );
+    // Tarih seçimi
+    console.log("Tarih seçiliyor:", date);
+    await page.waitForSelector(
+      '[data-testid="enuygun-homepage-flight-departureDate-datepicker-popover-button"]',
+      { timeout: 10000 }
+    );
+    await page.click(
+      '[data-testid="enuygun-homepage-flight-departureDate-datepicker-popover-button"]'
+    ); // Takvimin yüklenmesini bekle
+    await page.evaluate(
+      () => new Promise((resolve) => setTimeout(resolve, 1000))
+    );
 
-            if (response && response.slots && response.slots.length > 0) {
-              availableSlots.push({
-                date: formattedDate,
-                slots: response.slots,
-              });
-            }
-          } catch (error) {
-            console.error(`Error checking date ${formattedDate}:`, error);
-          }
-          break;
+    // Frame kontrolü
+    const frames = page.frames();
+    const calendarFrame = frames.find(
+      (frame) =>
+        frame.url().includes("calendar") || frame.name().includes("calendar")
+    );
+    console.log("Tarih seçici bekleniyor...");
+    try {
+      // Önce takvimin görünür olmasını bekle
+      await page.waitForSelector(
+        '[data-testid="enuygun-homepage-flight-departureDate-datepicker-popover-panel"]',
+        {
+          visible: true,
+          timeout: 5000,
+        }
+      ); // Tarihi seç
+      const dateButton = await page.$(`button[title="${date}"]`);
+      if (!dateButton) {
+        console.log("Tarih bulunamadı, DOM içeriğini kontrol et");
+        const html = await page.content();
+        console.log("Sayfa içeriği:", html);
+        throw new Error("Tarih butonu bulunamadı");
+      }
+      await dateButton.click();
+      console.log("Tarih seçildi");
+    } catch (error) {
+      console.log("Alternatif tarih seçme yöntemi deneniyor...");
 
-        case "Germany":
-          try {
-            const slots = await page.evaluate((date) => {
-              const availableDates = document.querySelectorAll(".buchbar");
-              return Array.from(availableDates).map((date) =>
-                date.getAttribute("data-date")
-              );
-            });
-
-            if (slots.length > 0) {
-              availableSlots.push({
-                date: formattedDate,
-                slots: slots,
-              });
-            }
-          } catch (error) {
-            console.error(`Error checking date ${formattedDate}:`, error);
-          }
-          break;
-
-        default:
-          // Test data
-          if (Math.random() > 0.8) {
-            // %20 olasılıkla randevu var
-            availableSlots.push({
-              date: formattedDate,
-              slots: [`Test slot for ${formattedDate}`],
-            });
-          }
+      // Alternatif yöntem: data-date attribute'u ile dene
+      try {
+        await page.waitForSelector(`[data-date="${date}"]`, { timeout: 5000 });
+        await page.click(`[data-date="${date}"]`);
+        console.log("Tarih alternatif yöntemle seçildi");
+      } catch (dateError) {
+        console.error("Tarih seçilemedi:", dateError);
+        throw dateError;
       }
     }
 
-    return {
-      success: true,
-      country,
-      city,
-      visaType,
-      availableSlots,
-      message:
-        availableSlots.length > 0
-          ? `${availableSlots.length} günde randevu bulundu`
-          : "Uygun randevu bulunamadı",
-      details: availableSlots,
-    };
+    // Arama butonuna tıklama
+    console.log("Arama başlatılıyor...");
+    await page.waitForSelector(
+      '[data-testid="enuygun-homepage-flight-submitButton"]'
+    );
+    await page.click('[data-testid="enuygun-homepage-flight-submitButton"]');
+
+    try {
+      console.log("Sonuçlar bekleniyor...");
+      await page.waitForSelector(".flight-list-body", { timeout: 30000 });
+
+      console.log("Uçuş bilgileri toplanıyor...");
+      const flightInfo = await page.evaluate(() => {
+        const summaryAirports = document.querySelectorAll(".summary-airports");
+        const averagePrices = document.querySelectorAll(
+          ".summary-average-price"
+        );
+        const marketingAirlines = document.querySelectorAll(
+          ".summary-marketing-airlines"
+        );
+        const airlineIcons = document.querySelectorAll(".airline-icon");
+        const departureTimes = document.querySelectorAll(
+          ".flight-departure-time"
+        );
+        const arrivalTimes = document.querySelectorAll(".flight-arrival-time");
+
+        const flights = Array.from(summaryAirports).map((airport, index) => {
+          const airportInfo = Array.from(airport.querySelectorAll("span"))
+            .map((span) => span.textContent.trim())
+            .join(" → ");
+
+          const priceElement = averagePrices[index];
+          const price = priceElement
+            ? priceElement.getAttribute("data-price")
+            : null;
+
+          const airlineElement = marketingAirlines[index];
+          const airlineName = airlineElement?.textContent?.trim();
+
+          const airlineIconElement = airlineIcons[index];
+          const airlineIcon = airlineIconElement?.getAttribute("src");
+
+          const departureTime =
+            departureTimes[index]?.textContent?.trim() || "";
+          const arrivalTime = arrivalTimes[index]?.textContent?.trim() || "";
+          const timeInfo =
+            departureTime && arrivalTime
+              ? `${departureTime} → ${arrivalTime}`
+              : "";
+
+          return {
+            route: airportInfo,
+            price: price ? `${price} TL` : "Fiyat bulunamadı",
+            airline: airlineName || "Havayolu bilgisi bulunamadı",
+            airlineIcon: airlineIcon || null,
+            timeInfo,
+          };
+        });
+
+        return {
+          flights,
+          totalFlights: flights.length,
+        };
+      });
+
+      console.log("İşlem tamamlandı, sonuçlar gönderiliyor...");
+      await browser.close();
+      res.json({ flightInfo });
+    } catch (error) {
+      console.log("Sonuç bulunamadı:", error.message);
+      await browser.close();
+      res.status(404).json({ error: "Sefer bulunamadı" });
+    }
   } catch (error) {
-    console.error("Visa appointment check error:", error);
-    return {
-      success: false,
-      error: error.message,
-      country,
-      city,
-      visaType,
-    };
-  } finally {
+    console.error("Scraping hatası:", error);
     if (browser) {
       await browser.close();
     }
-  }
-}
-
-// Yeni endpoint
-app.get("/check-visa-appointment", async (req, res) => {
-  const { country, city, visaType } = req.query;
-
-  if (!country || !city || !visaType) {
-    return res.status(400).json({
-      error: "Missing required parameters",
-      received: { country, city, visaType },
-    });
-  }
-
-  try {
-    const result = await checkVisaAppointment(country, city, visaType);
-    res.json(result);
-  } catch (error) {
-    console.error("Error in /check-visa-appointment:", error);
     res.status(500).json({
-      error: "Randevu kontrolü sırasında bir hata oluştu",
+      error: "Uçuş arama sırasında bir hata oluştu",
       details: error.message,
     });
-  }
-});
-
-// Vize randevusu alarm oluşturma endpoint'i
-app.post("/create-visa-alarm", async (req, res) => {
-  const { userId, country, city, visaType, email } = req.body;
-
-  try {
-    const alarm = new Alarm({
-      userId,
-      type: "visa",
-      country,
-      city,
-      visaType,
-      email,
-      isActive: true,
-    });
-
-    await alarm.save();
-    res.json({ success: true, alarmId: alarm._id });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
   }
 });
 

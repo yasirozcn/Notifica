@@ -34,8 +34,11 @@ function NavBar() {
                 >
                   TCDD Bilet Notifica
                 </li>
-                <li className="text-black font-bold opacity-50 cursor-not-allowed">
-                  Vize Notifica (Coming Soon)
+                <li
+                  onClick={() => navigate('/flight')}
+                  className="cursor-pointer text-black font-bold"
+                >
+                  Uçak Bileti Ara
                 </li>
               </ul>
             </SignedIn>
@@ -139,10 +142,13 @@ function NavBar() {
                   TCDD Bilet Notifica
                 </button>
                 <button
-                  disabled
-                  className="w-full text-left px-3 py-2 text-[#1E2203] opacity-50 cursor-not-allowed"
+                  onClick={() => {
+                    navigate('/flight');
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-[#1E2203] hover:bg-gray-100 rounded-lg transition-colors duration-200"
                 >
-                  Vize Notifica (Coming Soon)
+                  Uçak Bileti Ara
                 </button>
               </SignedIn>
               <SignedOut>
