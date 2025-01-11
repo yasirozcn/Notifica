@@ -91,42 +91,23 @@ async function scrapeTickets(from, to, date) {
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         "--disable-gpu",
-        "--window-size=1024,768",
-        "--disable-web-security",
-        "--disable-features=IsolateOrigins,site-per-process",
-        "--allow-running-insecure-content",
-        "--disable-blink-features=AutomationControlled",
       ],
-      defaultViewport: {
-        width: 1024,
-        height: 768,
-      },
     });
 
-    console.log("Browser launched, creating new page...");
     const page = await browser.newPage();
-    await page.setDefaultNavigationTimeout(60000);
-    await page.setDefaultTimeout(60000);
-
-    // User agent'ı değiştir
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    );
-
     let trainData = null;
 
-    // Request interception'ı kaldır
+    // Response listener'ı güçlendir
     await page.setRequestInterception(false);
-
-    // Response listener'ı değiştir
     page.on("response", async (response) => {
       const url = response.url();
       if (url.includes("train-availability")) {
         try {
-          trainData = await response.json().catch(() => null);
-          if (trainData) {
-            console.log("Train data captured successfully");
-          }
+          console.log("Train availability response intercepted");
+          const responseText = await response.text();
+          console.log("Response text received");
+          trainData = JSON.parse(responseText);
+          console.log("Response parsed successfully");
         } catch (error) {
           console.error("Error parsing response:", error);
         }
@@ -135,40 +116,30 @@ async function scrapeTickets(from, to, date) {
 
     console.log("Navigating to TCDD website...");
     await page.goto(
-      "https://ebilet.tcddtasimacilik.gov.tr/view/eybis/tnmGenel/tcddWebContent.jsf",
-      {
-        waitUntil: "networkidle0",
-        timeout: 60000,
-      }
+      "https://ebilet.tcddtasimacilik.gov.tr/view/eybis/tnmGenel/tcddWebContent.jsf"
     );
 
     console.log("Waiting for form elements...");
-    // Form doldurma işlemleri...
-    await page.waitForSelector("#fromTrainInput", { timeout: 30000 });
-    console.log("Entering departure station:", from);
+    await page.waitForSelector("#fromTrainInput");
     await page.type("#fromTrainInput", from);
-    await page.waitForSelector(".dropdown-item.station", { timeout: 10000 });
+    await page.waitForSelector(".dropdown-item.station");
     await page.click(".dropdown-item.station");
 
-    console.log("Entering arrival station:", to);
-    await page.waitForSelector("#toTrainInput", { timeout: 10000 });
+    await page.waitForSelector("#toTrainInput");
     await page.type("#toTrainInput", to);
     const stations = await page.$$(".dropdown-item.station");
     await stations[1].click();
 
     // Tarih seçimi
-    console.log("Selecting date:", date);
     const [day, month, year] = date.split(".");
     const formattedDate = `${year}-${month}-${day}`;
 
-    await page.waitForSelector(".form-control.calenderPurpleImg", {
-      timeout: 10000,
-    });
+    await page.waitForSelector(".form-control.calenderPurpleImg");
     await page.click(".form-control.calenderPurpleImg");
-    await page.waitForSelector(".daterangepicker", { timeout: 10000 });
+    await page.waitForSelector(".daterangepicker");
 
     const dateSelector = `td[data-date="${formattedDate}"]`;
-    await page.waitForSelector(dateSelector, { timeout: 10000 });
+    await page.waitForSelector(dateSelector);
     await page.click(dateSelector);
 
     console.log("Clicking search button...");
@@ -178,7 +149,6 @@ async function scrapeTickets(from, to, date) {
     console.log("Waiting for results...");
     await new Promise((resolve) => setTimeout(resolve, 8000));
 
-    // Veri kontrolü
     if (!trainData) {
       console.log("No train data received after search");
       return { apiResponse: null };
