@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
-import axios from 'axios';
+import { API_BASE_URL } from '../config/api';
 
 function VisaAlarm() {
   const navigate = useNavigate();
@@ -43,19 +43,16 @@ function VisaAlarm() {
 
     setLoading(true);
     try {
-      const checkResponse = await axios.get(
-        'http://localhost:8080/check-visa-appointment',
-        {
-          params: {
-            country: formData.missionCountry,
-            city: formData.cities[0],
-            visaType: formData.visaType,
-          },
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/create-alarm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
 
-      setResult(checkResponse.data);
-      console.log('API Response:', checkResponse.data);
+      setResult(response.data);
+      console.log('API Response:', response.data);
     } catch (error) {
       console.error('Error:', error);
       alert('Bir hata oluştu. Lütfen tekrar deneyin.');

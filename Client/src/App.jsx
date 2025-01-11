@@ -6,17 +6,10 @@ import HourChoices from './components/HourChoices';
 import stationsJson from './stations.json';
 import './App.css';
 import NavBar from './components/NavBar';
-import axios from 'axios';
+import api from './utils/axios';
+import { API_BASE_URL } from './config/api';
 
 const SEFER_URL = 'https://api-yebsp.tcddtasimacilik.gov.tr/sefer/seferSorgula';
-
-const api = axios.create({
-  baseURL: 'http://localhost:8080',
-  timeout: 120000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
 
 const App = () => {
   const [stations, setStations] = useState({});
@@ -93,7 +86,7 @@ const App = () => {
         date: formattedDate,
       });
 
-      const response = await api.get('/scrape-tickets', {
+      const response = await api.get(`${API_BASE_URL}/scrape-tickets`, {
         params: {
           from: selectedStations.binisIstasyonAdi,
           to: selectedStations.inisIstasyonAdi,

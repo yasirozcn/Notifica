@@ -16,7 +16,10 @@ dotenv.config();
 const app = express();
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: [
+      "http://localhost:5173",
+      "https://your-frontend-production-url.com",
+    ],
     credentials: true,
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -78,6 +81,7 @@ async function scrapeTickets(from, to, date) {
   let browser = null;
 
   try {
+    console.log("Launching browser with args...");
     browser = await puppeteer.launch({
       headless: "new",
       executablePath:
@@ -87,10 +91,28 @@ async function scrapeTickets(from, to, date) {
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         "--disable-gpu",
+        "--window-size=1024,768",
+        "--disable-web-security",
+        "--disable-features=IsolateOrigins,site-per-process",
+        "--allow-running-insecure-content",
+        "--disable-blink-features=AutomationControlled",
       ],
+      defaultViewport: {
+        width: 1024,
+        height: 768,
+      },
     });
 
+    console.log("Browser launched, creating new page...");
     const page = await browser.newPage();
+    await page.setDefaultNavigationTimeout(60000);
+    await page.setDefaultTimeout(60000);
+
+    // User agent'ı değiştir
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    );
+
     let trainData = null;
 
     // Request interception'ı kaldır
@@ -101,7 +123,6 @@ async function scrapeTickets(from, to, date) {
       const url = response.url();
       if (url.includes("train-availability")) {
         try {
-          // response.text() yerine response.json() kullanalım
           trainData = await response.json().catch(() => null);
           if (trainData) {
             console.log("Train data captured successfully");
@@ -112,7 +133,7 @@ async function scrapeTickets(from, to, date) {
       }
     });
 
-    // Sayfayı yükle ve form işlemlerini yap
+    console.log("Navigating to TCDD website...");
     await page.goto(
       "https://ebilet.tcddtasimacilik.gov.tr/view/eybis/tnmGenel/tcddWebContent.jsf",
       {
@@ -121,33 +142,40 @@ async function scrapeTickets(from, to, date) {
       }
     );
 
+    console.log("Waiting for form elements...");
     // Form doldurma işlemleri...
-    await page.waitForSelector("#fromTrainInput");
+    await page.waitForSelector("#fromTrainInput", { timeout: 30000 });
+    console.log("Entering departure station:", from);
     await page.type("#fromTrainInput", from);
-    await page.waitForSelector(".dropdown-item.station");
+    await page.waitForSelector(".dropdown-item.station", { timeout: 10000 });
     await page.click(".dropdown-item.station");
 
-    await page.waitForSelector("#toTrainInput");
+    console.log("Entering arrival station:", to);
+    await page.waitForSelector("#toTrainInput", { timeout: 10000 });
     await page.type("#toTrainInput", to);
     const stations = await page.$$(".dropdown-item.station");
     await stations[1].click();
 
     // Tarih seçimi
+    console.log("Selecting date:", date);
     const [day, month, year] = date.split(".");
     const formattedDate = `${year}-${month}-${day}`;
 
-    await page.waitForSelector(".form-control.calenderPurpleImg");
+    await page.waitForSelector(".form-control.calenderPurpleImg", {
+      timeout: 10000,
+    });
     await page.click(".form-control.calenderPurpleImg");
-    await page.waitForSelector(".daterangepicker");
+    await page.waitForSelector(".daterangepicker", { timeout: 10000 });
 
     const dateSelector = `td[data-date="${formattedDate}"]`;
-    await page.waitForSelector(dateSelector);
+    await page.waitForSelector(dateSelector, { timeout: 10000 });
     await page.click(dateSelector);
 
-    // Arama butonuna tıkla
+    console.log("Clicking search button...");
     await page.click("#searchSeferButton");
 
     // Sonuçları bekle
+    console.log("Waiting for results...");
     await new Promise((resolve) => setTimeout(resolve, 8000));
 
     // Veri kontrolü
@@ -156,12 +184,14 @@ async function scrapeTickets(from, to, date) {
       return { apiResponse: null };
     }
 
+    console.log("Train data received successfully");
     return { apiResponse: trainData };
   } catch (error) {
     console.error("Scraping error:", error);
     return { apiResponse: null, error: error.message };
   } finally {
     if (browser) {
+      console.log("Closing browser...");
       await browser.close();
     }
   }
@@ -267,11 +297,33 @@ app.get("/search-flights", async (req, res) => {
   try {
     console.log("Tarayıcı başlatılıyor...");
     browser = await puppeteer.launch({
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || chromium.path,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      headless: "new",
+      executablePath:
+        process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium",
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--window-size=1024,768",
+        "--disable-web-security",
+        "--disable-features=IsolateOrigins,site-per-process",
+        "--allow-running-insecure-content",
+        "--disable-blink-features=AutomationControlled",
+      ],
+      defaultViewport: {
+        width: 1024,
+        height: 768,
+      },
     });
 
     const page = await browser.newPage();
+    await page.setDefaultNavigationTimeout(60000);
+    await page.setDefaultTimeout(60000);
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    );
+
     console.log("Enuygun.com'a gidiliyor...");
     await page.goto("https://www.enuygun.com/ucak-bileti/", {
       waitUntil: "networkidle0",

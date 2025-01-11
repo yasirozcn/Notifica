@@ -10,6 +10,10 @@ RUN apt-get update \
     fonts-thai-tlwg \
     fonts-kacst \
     fonts-freefont-ttf \
+    libgconf-2-4 \
+    libxss1 \
+    libxtst6 \
+    xvfb \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
@@ -21,7 +25,12 @@ COPY BE/package*.json ./
 
 # Puppeteer'ı Chromium ile kullanmak için environment variable'ları ayarla
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    DISPLAY=:99
+
+# Xvfb başlat
+RUN printf '#!/bin/bash\nXvfb :99 -screen 0 1024x768x16 &\nexec "$@"' > /entrypoint.sh \
+    && chmod +x /entrypoint.sh
 
 # Bağımlılıkları yükle
 RUN npm install
@@ -33,4 +42,5 @@ COPY BE/. .
 EXPOSE 8080
 
 # Uygulamayı başlat
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["node", "server.js"] 

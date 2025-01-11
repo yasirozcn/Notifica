@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useMemo } from 'react';
 import airportsData from '../../airports.json';
+import { API_BASE_URL } from '../config/api';
 
 function FlightSearch() {
   const [departure, setDeparture] = useState('');
@@ -81,7 +82,7 @@ function FlightSearch() {
 
     try {
       const response = await fetch(
-        `http://localhost:8080/search-flights?departure=${departureAirport.iata}&arrival=${arrivalAirport.iata}&date=${formattedDate}`
+        `${API_BASE_URL}/search-flights?departure=${departureAirport.iata}&arrival=${arrivalAirport.iata}&date=${formattedDate}`
       );
 
       if (!response.ok) {
