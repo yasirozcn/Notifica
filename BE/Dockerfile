@@ -1,6 +1,7 @@
-FROM node:18-bullseye-slim
+# Node.js base image
+FROM node:18-slim
 
-# Chrome için gerekli paketleri kur
+# Install Chrome dependencies
 RUN apt-get update \
     && apt-get install -y \
     chromium \
@@ -15,8 +16,8 @@ RUN apt-get update \
 # Çalışma dizinini oluştur
 WORKDIR /usr/src/app
 
-# Package.json ve package-lock.json dosyalarını kopyala
-COPY package*.json ./
+# package.json ve package-lock.json dosyalarını BE klasöründen kopyala
+COPY BE/package*.json ./
 
 # Puppeteer'ı Chromium ile kullanmak için environment variable'ları ayarla
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
@@ -25,10 +26,10 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
 # Bağımlılıkları yükle
 RUN npm install
 
-# Kaynak kodları kopyala
-COPY . .
+# BE klasöründeki kaynak kodları kopyala
+COPY BE/. .
 
-# Portu aç
+# Port'u aç
 EXPOSE 8080
 
 # Uygulamayı başlat
