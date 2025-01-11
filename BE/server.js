@@ -144,24 +144,26 @@ async function scrapeTickets(from, to, date) {
       const url = response.url();
       console.log("Incoming response URL:", url);
 
-      // Hem dev hem prod environment'ını kontrol et
+      // TCDD'nin tüm AJAX isteklerini kontrol et
       if (
-        url.includes("train-availability?environment=dev") ||
-        url.includes("train-availability")
+        url.includes("tcddtasimacilik.gov.tr") &&
+        (url.includes("train-availability") || url.includes("seferSorgula"))
       ) {
         try {
-          console.log("Train availability response intercepted from:", url);
+          console.log("TCDD response intercepted from:", url);
           const responseText = await response.text();
-          console.log(
-            "Raw train data response:",
-            responseText.substring(0, 200)
-          ); // İlk 200 karakteri logla
-          trainData = JSON.parse(responseText);
-          console.log("Train data parsed successfully");
+          console.log("Response status:", response.status());
+          console.log("Response headers:", response.headers());
+
+          if (
+            responseText.includes("seferSonuc") ||
+            responseText.includes("trainData")
+          ) {
+            console.log("Found train data in response");
+            trainData = JSON.parse(responseText);
+          }
         } catch (error) {
-          console.error("Error parsing response:", error);
-          console.error("Response status:", response.status());
-          console.error("Response headers:", response.headers());
+          console.error("Error handling response:", error);
         }
       }
     });
@@ -240,12 +242,45 @@ async function scrapeTickets(from, to, date) {
       document.querySelector("#searchSeferButton").click()
     );
 
+    // Loading overlay'in görünmesini bekle
+    console.log("Waiting for loading overlay...");
+    await page
+      .waitForSelector(".vld-overlay.is-active", { visible: true })
+      .catch((e) => console.log("Loading overlay not found:", e.message));
+
+    // Loading overlay'in kaybolmasını bekle
+    console.log("Waiting for loading to complete...");
+    await page
+      .waitForFunction(
+        () => {
+          const overlay = document.querySelector(".vld-overlay.is-active");
+          return overlay && window.getComputedStyle(overlay).display === "none";
+        },
+        { timeout: 30000 }
+      )
+      .catch((e) => console.log("Loading wait timeout:", e.message));
+
     // Sonuçları bekle
-    console.log("Waiting for results...");
+    console.log("Checking for results...");
     await new Promise((resolve) => setTimeout(resolve, 8000));
 
+    // Son bir kontrol daha yap
     if (!trainData) {
       console.log("No train data received after search");
+
+      // Sayfadaki son durumu kontrol et
+      const pageState = await page.evaluate(() => {
+        const overlay = document.querySelector(".vld-overlay.is-active");
+        return {
+          overlayExists: !!overlay,
+          overlayDisplay: overlay
+            ? window.getComputedStyle(overlay).display
+            : "not found",
+          pageContent: document.body.innerHTML.substring(0, 500), // İlk 500 karakter
+        };
+      });
+
+      console.log("Final page state:", pageState);
       return { apiResponse: null };
     }
 
