@@ -310,6 +310,14 @@ app.get("/search-flights", async (req, res) => {
         "--disable-features=IsolateOrigins,site-per-process",
         "--allow-running-insecure-content",
         "--disable-blink-features=AutomationControlled",
+        "--ignore-certificate-errors",
+        "--ignore-certificate-errors-spki-list",
+        "--enable-features=NetworkService",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--single-process",
+        "--disable-extensions",
       ],
       defaultViewport: {
         width: 1024,
@@ -318,17 +326,41 @@ app.get("/search-flights", async (req, res) => {
     });
 
     const page = await browser.newPage();
-    await page.setDefaultNavigationTimeout(60000);
-    await page.setDefaultTimeout(60000);
+
+    // Sayfa yüklenme stratejisini değiştir
+    await page.setDefaultNavigationTimeout(90000); // 90 saniye
+    await page.setDefaultTimeout(90000);
+
+    // JavaScript'i devre dışı bırak ve tekrar etkinleştir
+    await page.setJavaScriptEnabled(false);
+    await page.setJavaScriptEnabled(true);
+
+    // Extra headers ekle
+    await page.setExtraHTTPHeaders({
+      "Accept-Language": "en-US,en;q=0.9",
+      Accept:
+        "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+      "Accept-Encoding": "gzip, deflate, br",
+      Connection: "keep-alive",
+      "Upgrade-Insecure-Requests": "1",
+      "Cache-Control": "max-age=0",
+    });
+
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     );
 
     console.log("Enuygun.com'a gidiliyor...");
+
+    // Sayfa yükleme stratejisini değiştir
     await page.goto("https://www.enuygun.com/ucak-bileti/", {
-      waitUntil: "networkidle0",
-      timeout: 60000,
+      waitUntil: ["networkidle0", "domcontentloaded"],
+      timeout: 90000,
     });
+
+    // Sayfanın tamamen yüklenmesini bekle
+    await page.waitForFunction(() => document.readyState === "complete");
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Çerez popup kontrolü
     console.log("Çerez popup kontrolü yapılıyor...");
