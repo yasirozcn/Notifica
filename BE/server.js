@@ -41,7 +41,7 @@ mongoose
   .then(() => console.log("MongoDB connected successfully"))
   .catch((err) => console.error("MongoDB connection error:", err));
 
-// Mongoose deprecation warning fix
+// Mongoose strictQuery configuration
 mongoose.set("strictQuery", false);
 
 // Basic error handling
@@ -485,7 +485,15 @@ app.get("/search-flights", async (req, res) => {
   }
 });
 
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "OK" });
+});
+
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(
+    `Health check endpoint available at: http://0.0.0.0:${PORT}/health`
+  );
 });
