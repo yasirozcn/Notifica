@@ -5,6 +5,7 @@ FROM node:18-slim
 RUN apt-get update \
     && apt-get install -y \
     chromium \
+    chromium-sandbox \
     fonts-ipafont-gothic \
     fonts-wqy-zenhei \
     fonts-thai-tlwg \
@@ -26,6 +27,7 @@ RUN apt-get update \
     libxrandr2 \
     libgbm1 \
     libasound2 \
+    ca-certificates \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
@@ -38,7 +40,8 @@ COPY BE/package*.json ./
 # Puppeteer'ı Chromium ile kullanmak için environment variable'ları ayarla
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    DISPLAY=:99
+    DISPLAY=:99 \
+    CHROME_PATH=/usr/bin/chromium
 
 # Xvfb başlat
 RUN printf '#!/bin/bash\nXvfb :99 -screen 0 1024x768x16 &\nexec "$@"' > /entrypoint.sh \

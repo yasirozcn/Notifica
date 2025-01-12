@@ -100,19 +100,43 @@ async function scrapeTickets(from, to, date) {
     // Network isteğini dinlemeye başla
     await page.setRequestInterception(true);
     page.on("request", (request) => {
+      console.log("Outgoing request URL:", request.url());
       request.continue();
     });
     page.on("response", async (response) => {
-      if (response.url().includes("train-availability?environment=dev")) {
+      const url = response.url();
+      console.log("Incoming response URL:", url);
+
+      // Hem dev hem prod environment kontrolü
+      if (url.includes("train-availability") || url.includes("seferSorgula")) {
         try {
           const responseText = await response.text();
-          console.log("Raw train data response:", responseText);
+          console.log(
+            "Raw train data response:",
+            responseText.substring(0, 200)
+          ); // İlk 200 karakter
           trainData = JSON.parse(responseText);
         } catch (error) {
           console.error("Error parsing response:", error);
+          console.error("Response status:", response.status());
+          console.error("Response headers:", response.headers());
         }
       }
     });
+
+    // Sayfaya gitmeden önce extra headers ekle
+    await page.setExtraHTTPHeaders({
+      "Accept-Language": "tr-TR,tr;q=0.9",
+      Accept: "application/json, text/plain, */*",
+      Connection: "keep-alive",
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    });
+
+    // User agent'ı ayarla
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    );
 
     console.log("Navigating to TCDD website...");
     await page.goto(
