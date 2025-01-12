@@ -7,23 +7,26 @@ import { RouterProvider, createBrowserRouter } from 'react-router-dom';
 import RootLayout from './layouts/root-layout';
 
 // Import the components
-import App from './App';
 import Home from './routes/Home';
 import SignInPage from './routes/SignInPage';
 import SignUpPage from './routes/SignUpPage';
-import VisaAlarm from './routes/VisaAlarm';
 import FlightSearch from './routes/FlightSearch';
+import TrainSearch from './routes/TrainSearch';
+import FlightResults from './routes/FlightResults';
+import TrainResults from './routes/TrainResults';
 
 const router = createBrowserRouter([
   {
     element: <RootLayout />,
     children: [
       { path: '/', element: <Home /> },
-      { path: '/alarm', element: <App /> },
+      { path: '/alarm', element: <TrainSearch /> },
       { path: '/sign-in/*', element: <SignInPage /> },
       { path: '/sign-up/*', element: <SignUpPage /> },
-      { path: '/visa-alarm', element: <VisaAlarm /> },
       { path: '/flight', element: <FlightSearch /> },
+      { path: '/flight-results', element: <FlightResults /> },
+      { path: '/train', element: <TrainSearch /> },
+      { path: '/train-results', element: <TrainResults /> },
     ],
   },
 ]);

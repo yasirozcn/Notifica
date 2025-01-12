@@ -1,9 +1,11 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import airportsData from '../../airports.json';
 import { API_BASE_URL } from '../config/api';
 
 function FlightSearch() {
+  const navigate = useNavigate();
   const [departure, setDeparture] = useState('');
   const [arrival, setArrival] = useState('');
   const [date, setDate] = useState('');
@@ -11,10 +13,8 @@ function FlightSearch() {
   const [searchArrival, setSearchArrival] = useState('');
   const [showDepartureDropdown, setShowDepartureDropdown] = useState(false);
   const [showArrivalDropdown, setShowArrivalDropdown] = useState(false);
-  const [journeys, setJourneys] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [flightInfo, setFlightInfo] = useState(null);
 
   const validAirports = useMemo(() => {
     return Object.entries(airportsData)
@@ -74,7 +74,6 @@ function FlightSearch() {
       return;
     }
 
-    // Tarihi yyyy-mm-dd formatına çevir
     const formattedDate = new Date(date).toISOString().split('T')[0];
 
     setLoading(true);
@@ -90,7 +89,13 @@ function FlightSearch() {
       }
 
       const data = await response.json();
-      setFlightInfo(data.flightInfo);
+
+      // API yanıtını doğrudan kullan
+      navigate('/flight-results', {
+        state: {
+          flightInfo: data,
+        },
+      });
     } catch (error) {
       console.error('Hata:', error);
       setError('Sefer arama sırasında bir hata oluştu');
@@ -202,7 +207,6 @@ function FlightSearch() {
             </label>
             <input
               type="date"
-              value={date}
               onChange={(e) => setDate(e.target.value)}
               className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-[#9ebf3f] focus:ring-[#9ebf3f]"
               min={new Date().toISOString().split('T')[0]}
@@ -211,66 +215,35 @@ function FlightSearch() {
 
           <button
             onClick={handleSearch}
-            className="w-full bg-[#9ebf3f] text-white py-2 px-4 rounded-lg hover:bg-[#8ba835] transition-colors duration-200"
+            disabled={loading}
+            className={`
+              w-full py-3 px-6
+              bg-[#9ebf3f] hover:bg-[#8ba835]
+              text-white font-semibold
+              rounded-lg
+              transition-colors duration-200
+              shadow-md hover:shadow-lg
+              disabled:opacity-50 disabled:cursor-not-allowed
+            `}
           >
-            Uçuş Ara
+            {loading ? 'Searching...' : 'Find Flights'}
           </button>
+
+          {error && (
+            <div className="text-red-600 text-center mt-4">{error}</div>
+          )}
         </div>
       </div>
 
       {loading && (
-        <div className="mt-4 text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#9ebf3f] mx-auto"></div>
-          <p className="mt-2 text-gray-600">Uçuşlar aranıyor...</p>
-        </div>
-      )}
-
-      {error && (
-        <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-lg">
-          {error}
-        </div>
-      )}
-
-      {flightInfo && (
-        <div className="mt-8">
-          <h2 className="text-xl font-bold mb-4">
-            Bulunan Uçuşlar ({flightInfo.totalFlights})
-          </h2>
-          <div className="space-y-4">
-            {flightInfo.flights.map((flight, index) => (
-              <div
-                key={index}
-                className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow"
-              >
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-4">
-                    {flight.airlineIcon && (
-                      <img
-                        src={flight.airlineIcon}
-                        alt={flight.airline}
-                        className="w-8 h-8 object-contain"
-                      />
-                    )}
-                    <div>
-                      <div className="text-sm text-gray-600 mb-1">
-                        {flight.airline}
-                      </div>
-                      <div className="text-lg font-medium text-black">
-                        {flight.route}
-                      </div>
-                      {flight.timeInfo && (
-                        <div className="text-sm text-gray-500 mt-1">
-                          {flight.timeInfo}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-xl font-bold text-[#9ebf3f]">
-                    {flight.price}
-                  </div>
-                </div>
-              </div>
-            ))}
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl">
+            <div className="flex flex-col items-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+              <p className="text-lg font-semibold text-blue-600">
+                Uçuşlar aranıyor...
+              </p>
+            </div>
           </div>
         </div>
       )}

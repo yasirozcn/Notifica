@@ -8,10 +8,11 @@ import {
 } from '@clerk/clerk-react';
 import IndexPage from '../routes/Index';
 import logo from '../assets/logos/notifica.png';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 
 function NavBar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
@@ -132,35 +133,34 @@ function NavBar() {
             {/* Mobile Menu Items */}
             <div className="space-y-1">
               <SignedIn>
-                <button
-                  onClick={() => {
-                    navigate('/alarm');
-                    setIsMenuOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-[#1E2203] hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                <Link
+                  to="/flight-search"
+                  className={`w-full text-left px-3 py-2 text-[#1E2203] hover:bg-gray-100 rounded-lg transition-colors duration-200 ${
+                    location.pathname === '/flight-search'
+                      ? 'text-[#9ebf3f] font-bold'
+                      : ''
+                  }`}
                 >
-                  TCDD Bilet Notifica
-                </button>
-                <button
-                  onClick={() => {
-                    navigate('/flight');
-                    setIsMenuOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-[#1E2203] hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                  Uçak Bileti
+                </Link>
+                <Link
+                  to="/train-search"
+                  className={`w-full text-left px-3 py-2 text-[#1E2203] hover:bg-gray-100 rounded-lg transition-colors duration-200 ${
+                    location.pathname === '/train-search'
+                      ? 'text-[#9ebf3f] font-bold'
+                      : ''
+                  }`}
                 >
-                  Uçak Bileti Ara
-                </button>
+                  Tren Bileti
+                </Link>
               </SignedIn>
               <SignedOut>
-                <button
-                  onClick={() => {
-                    navigate('/sign-in');
-                    setIsMenuOpen(false);
-                  }}
+                <Link
+                  to="/sign-in"
                   className="w-full text-left px-3 py-2 text-[#1E2203] hover:bg-gray-100 rounded-lg transition-colors duration-200"
                 >
                   TCDD Bilet Notifica
-                </button>
+                </Link>
                 <button
                   disabled
                   className="w-full text-left px-3 py-2 text-[#1E2203] opacity-50 cursor-not-allowed"
