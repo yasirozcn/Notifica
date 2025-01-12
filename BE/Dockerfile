@@ -51,11 +51,11 @@ RUN printf '#!/bin/bash\nXvfb :99 -screen 0 1024x768x16 &\nexec "$@"' > /entrypo
 RUN npm install
 
 #Local docker configs
-#COPY BE/server.js .
-#COPY BE/models ./models
-#COPY BE/.env .
+COPY BE/server.js .
+COPY BE/models ./models
+COPY BE/.env .
 # Kaynak kodları kopyala
-COPY BE/. .
+#COPY BE/. .
 
 # Port'u aç
 EXPOSE 8080
