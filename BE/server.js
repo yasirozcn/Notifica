@@ -91,196 +91,66 @@ async function scrapeTickets(from, to, date) {
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         "--disable-gpu",
-        "--window-size=1024,768",
-        "--disable-web-security",
-        "--disable-features=IsolateOrigins,site-per-process",
-        "--allow-running-insecure-content",
-        "--disable-blink-features=AutomationControlled",
-        "--ignore-certificate-errors",
-        "--ignore-certificate-errors-spki-list",
-        "--enable-features=NetworkService",
       ],
-      defaultViewport: {
-        width: 1024,
-        height: 768,
-      },
     });
 
     const page = await browser.newPage();
-
-    // Sayfa yüklenme stratejisini değiştir
-    await page.setDefaultNavigationTimeout(90000);
-    await page.setDefaultTimeout(90000);
-
-    // JavaScript'i devre dışı bırak ve tekrar etkinleştir
-    await page.setJavaScriptEnabled(false);
-    await page.setJavaScriptEnabled(true);
-
-    // Extra headers ekle
-    await page.setExtraHTTPHeaders({
-      "Accept-Language": "en-US,en;q=0.9",
-      Accept:
-        "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-      "Accept-Encoding": "gzip, deflate, br",
-      Connection: "keep-alive",
-      "Upgrade-Insecure-Requests": "1",
-      "Cache-Control": "max-age=0",
-    });
-
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    );
-
     let trainData = null;
 
-    // Response listener'ı güçlendir
+    // Network isteğini dinlemeye başla
     await page.setRequestInterception(true);
     page.on("request", (request) => {
-      console.log("Outgoing request URL:", request.url());
       request.continue();
     });
-
     page.on("response", async (response) => {
-      const url = response.url();
-      console.log("Incoming response URL:", url);
-
-      // TCDD'nin tüm AJAX isteklerini kontrol et
-      if (
-        url.includes("tcddtasimacilik.gov.tr") &&
-        (url.includes("train-availability") || url.includes("seferSorgula"))
-      ) {
+      if (response.url().includes("train-availability?environment=dev")) {
         try {
-          console.log("TCDD response intercepted from:", url);
           const responseText = await response.text();
-          console.log("Response status:", response.status());
-          console.log("Response headers:", response.headers());
-
-          if (
-            responseText.includes("seferSonuc") ||
-            responseText.includes("trainData")
-          ) {
-            console.log("Found train data in response");
-            trainData = JSON.parse(responseText);
-          }
+          console.log("Raw train data response:", responseText);
+          trainData = JSON.parse(responseText);
         } catch (error) {
-          console.error("Error handling response:", error);
+          console.error("Error parsing response:", error);
         }
       }
     });
 
-    // Sayfaya gitmeden önce network dinlemeyi başlat
     console.log("Navigating to TCDD website...");
-    const response = await page.goto(
-      "https://ebilet.tcddtasimacilik.gov.tr/view/eybis/tnmGenel/tcddWebContent.jsf",
-      {
-        waitUntil: "networkidle0",
-        timeout: 90000,
-      }
+    await page.goto(
+      "https://ebilet.tcddtasimacilik.gov.tr/view/eybis/tnmGenel/tcddWebContent.jsf"
     );
-
-    // Sayfa yükleme durumunu kontrol et
-    console.log("Page load status:", response.status());
-    if (!response.ok()) {
-      console.error("Page load failed:", response.statusText());
-    }
-
-    // Sayfanın tamamen yüklenmesini bekle
-    await page.waitForFunction(() => document.readyState === "complete");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     console.log("Waiting for form elements...");
-
-    // Kalkış istasyonu
-    console.log("Entering departure station:", from);
-    await page.waitForSelector("#fromTrainInput", { visible: true });
-    await page.evaluate(() =>
-      document.querySelector("#fromTrainInput").click()
-    );
+    await page.waitForSelector("#fromTrainInput");
     await page.type("#fromTrainInput", from);
-    await page.waitForSelector(".dropdown-item.station", { visible: true });
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    await page.evaluate(() => {
-      const elements = document.querySelectorAll(".dropdown-item.station");
-      if (elements.length > 0) elements[0].click();
-    });
+    await page.waitForSelector(".dropdown-item.station");
+    await page.click(".dropdown-item.station");
 
-    // Varış istasyonu
-    console.log("Entering arrival station:", to);
-    await page.waitForSelector("#toTrainInput", { visible: true });
-    await page.evaluate(() => document.querySelector("#toTrainInput").click());
+    await page.waitForSelector("#toTrainInput");
     await page.type("#toTrainInput", to);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    await page.evaluate(() => {
-      const elements = document.querySelectorAll(".dropdown-item.station");
-      if (elements.length > 1) elements[1].click();
-    });
+    const stations = await page.$$(".dropdown-item.station");
+    await stations[1].click();
 
     // Tarih seçimi
-    console.log("Selecting date:", date);
     const [day, month, year] = date.split(".");
     const formattedDate = `${year}-${month}-${day}`;
 
-    await page.waitForSelector(".form-control.calenderPurpleImg", {
-      visible: true,
-    });
-    await page.evaluate(() =>
-      document.querySelector(".form-control.calenderPurpleImg").click()
-    );
-    await page.waitForSelector(".daterangepicker", { visible: true });
+    await page.waitForSelector(".form-control.calenderPurpleImg");
+    await page.click(".form-control.calenderPurpleImg");
+    await page.waitForSelector(".daterangepicker");
 
     const dateSelector = `td[data-date="${formattedDate}"]`;
-    await page.waitForSelector(dateSelector, { visible: true });
-    await page.evaluate(
-      (selector) => document.querySelector(selector).click(),
-      dateSelector
-    );
+    await page.waitForSelector(dateSelector);
+    await page.click(dateSelector);
 
-    // Arama butonu
     console.log("Clicking search button...");
-    await page.waitForSelector("#searchSeferButton", { visible: true });
-    await page.evaluate(() =>
-      document.querySelector("#searchSeferButton").click()
-    );
-
-    // Loading overlay'in görünmesini bekle
-    console.log("Waiting for loading overlay...");
-    await page
-      .waitForSelector(".vld-overlay.is-active", { visible: true })
-      .catch((e) => console.log("Loading overlay not found:", e.message));
-
-    // Loading overlay'in kaybolmasını bekle
-    console.log("Waiting for loading to complete...");
-    await page
-      .waitForFunction(
-        () => {
-          const overlay = document.querySelector(".vld-overlay.is-active");
-          return overlay && window.getComputedStyle(overlay).display === "none";
-        },
-        { timeout: 30000 }
-      )
-      .catch((e) => console.log("Loading wait timeout:", e.message));
+    await page.click("#searchSeferButton");
 
     // Sonuçları bekle
-    console.log("Checking for results...");
+    console.log("Waiting for results...");
     await new Promise((resolve) => setTimeout(resolve, 8000));
 
-    // Son bir kontrol daha yap
     if (!trainData) {
       console.log("No train data received after search");
-
-      // Sayfadaki son durumu kontrol et
-      const pageState = await page.evaluate(() => {
-        const overlay = document.querySelector(".vld-overlay.is-active");
-        return {
-          overlayExists: !!overlay,
-          overlayDisplay: overlay
-            ? window.getComputedStyle(overlay).display
-            : "not found",
-          pageContent: document.body.innerHTML.substring(0, 500), // İlk 500 karakter
-        };
-      });
-
-      console.log("Final page state:", pageState);
       return { apiResponse: null };
     }
 

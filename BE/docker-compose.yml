@@ -1,11 +1,13 @@
 version: "3.8"
 services:
   backend:
-    platform: linux/arm64
-    build: .
+    build:
+      context: ..
+      dockerfile: BE/Dockerfile
     ports:
       - "8080:8080"
     environment:
+      - NODE_ENV=development
       - MONGODB_URI=${MONGODB_URI}
       - EMAIL_USER=${EMAIL_USER}
       - EMAIL_PASSWORD=${EMAIL_PASSWORD}
@@ -13,8 +15,11 @@ services:
       - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
       - FRONTEND_URL=http://localhost:5173
     volumes:
-      - .:/usr/src/app
-      - /usr/src/app/node_modules
+      - ./BE:/usr/src/app/src
+      - be_node_modules:/usr/src/app/node_modules
     command: npm run dev
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+volumes:
+  be_node_modules:

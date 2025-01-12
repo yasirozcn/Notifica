@@ -32,7 +32,7 @@ RUN apt-get update \
 # Çalışma dizinini oluştur
 WORKDIR /usr/src/app
 
-# package.json ve package-lock.json dosyalarını BE klasöründen kopyala
+# package.json ve package-lock.json dosyalarını kopyala
 COPY BE/package*.json ./
 
 # Puppeteer'ı Chromium ile kullanmak için environment variable'ları ayarla
@@ -47,7 +47,11 @@ RUN printf '#!/bin/bash\nXvfb :99 -screen 0 1024x768x16 &\nexec "$@"' > /entrypo
 # Bağımlılıkları yükle
 RUN npm install
 
-# BE klasöründeki kaynak kodları kopyala
+#Local docker configs
+#COPY BE/server.js .
+#COPY BE/models ./models
+#COPY BE/.env .
+# Kaynak kodları kopyala
 COPY BE/. .
 
 # Port'u aç
