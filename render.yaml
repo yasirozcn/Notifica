@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: biletbul-frontend
+    name: notifica-fe
     env: static
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
