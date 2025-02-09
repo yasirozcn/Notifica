@@ -120,9 +120,9 @@ const TrainSearch = () => {
 
   return (
     <div className="flex flex-col h-screen items-center">
-      <div className="flex flex-col gap-4 w-full max-w-2xl mx-auto p-6">
+      <div className="flex flex-col gap-4 w-full max-w-2xl mx-auto p-12">
         <h1 className="text-3xl font-bold text-center text-[#1E2203] mb-8">
-          Tren Bileti Ara
+          Train Ticket Search
         </h1>
 
         <StationsSelect
@@ -155,9 +155,7 @@ const TrainSearch = () => {
             <div className="toggle-knob"></div>
           </div>
           <span className="toggle-label">
-            {business
-              ? 'Business Class Tickets: ON'
-              : 'Business Class Tickets: OFF'}
+            {business ? 'Business Class: ON' : 'Business Class: OFF'}
           </span>
         </div>
 
@@ -174,7 +172,7 @@ const TrainSearch = () => {
             disabled:opacity-50 disabled:cursor-not-allowed
           `}
         >
-          {loading ? 'Searching...' : 'Find Journeys'}
+          {loading ? 'Searching...' : 'Search Tickets'}
         </button>
       </div>
 
@@ -184,7 +182,7 @@ const TrainSearch = () => {
             <div className="flex flex-col items-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
               <p className="text-lg font-semibold text-blue-600">
-                Seferler aranıyor...
+                Searching for tickets...
               </p>
             </div>
           </div>

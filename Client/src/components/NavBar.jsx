@@ -33,13 +33,13 @@ function NavBar() {
                   onClick={() => navigate('/alarm')}
                   className="cursor-pointer text-black font-bold"
                 >
-                  TCDD Bilet Notifica
+                  TCDD Ticket Notifica
                 </li>
                 <li
                   onClick={() => navigate('/flight')}
                   className="cursor-pointer text-black font-bold"
                 >
-                  Uçak Bileti Ara
+                  Flight Ticket Search
                 </li>
               </ul>
             </SignedIn>
@@ -49,13 +49,13 @@ function NavBar() {
                   onClick={() => navigate('/alarm')}
                   className="cursor-pointer text-black font-bold"
                 >
-                  TCDD Bilet Notifica
+                  TCDD Ticket Notifica
                 </li>
                 <li
                   onClick={() => navigate('/flight')}
                   className="cursor-pointer text-black font-bold"
                 >
-                  Uçak Bileti Ara
+                  Flight Ticket Search
                 </li>
               </ul>
             </SignedOut>
@@ -105,7 +105,7 @@ function NavBar() {
             <div className="border-b border-gray-200 pb-3 mb-3">
               <SignedIn>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">Hesabım</span>
+                  <span className="text-sm text-gray-500">My Account</span>
                   <UserButton />
                 </div>
               </SignedIn>
@@ -118,7 +118,7 @@ function NavBar() {
                       setIsMenuOpen(false);
                     }}
                   >
-                    Giriş Yap
+                    Sign In
                   </button>
                   <button
                     className="w-full py-2 px-4 border-2 border-[#9ebf3f] text-[#9ebf3f] rounded-[48px] hover:bg-slate-100 transition-colors duration-200"
@@ -127,50 +127,36 @@ function NavBar() {
                       setIsMenuOpen(false);
                     }}
                   >
-                    Kayıt Ol
+                    Sign Up
                   </button>
                 </div>
               </SignedOut>
             </div>
 
             {/* Mobile Menu Items */}
-            <div className="space-y-1">
+            <div className="space-y-3">
               <SignedIn>
-                <Link
-                  to="/flight-search"
-                  className={`w-full text-left px-3 py-2 text-[#1E2203] hover:bg-gray-100 rounded-lg transition-colors duration-200 ${
-                    location.pathname === '/flight-search'
-                      ? 'text-[#9ebf3f] font-bold'
-                      : ''
-                  }`}
-                >
-                  Uçak Bileti
-                </Link>
-                <Link
-                  to="/train-search"
-                  className={`w-full text-left px-3 py-2 text-[#1E2203] hover:bg-gray-100 rounded-lg transition-colors duration-200 ${
-                    location.pathname === '/train-search'
-                      ? 'text-[#9ebf3f] font-bold'
-                      : ''
-                  }`}
-                >
-                  Tren Bileti
-                </Link>
+                <div className="flex gap-2 justify-between">
+                  <button
+                    onClick={() => {
+                      navigate('/flight-search');
+                      setIsMenuOpen(false);
+                    }}
+                    className="flex-1 py-2 px-4 text-center text-[#1E2203] bg-[#E6E1D7] rounded-lg hover:bg-[#d8d3c9] transition-colors duration-200"
+                  >
+                    Flight Search
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigate('/train-search');
+                      setIsMenuOpen(false);
+                    }}
+                    className="flex-1 py-2 px-4 text-center text-[#1E2203] bg-[#E6E1D7] rounded-lg hover:bg-[#d8d3c9] transition-colors duration-200"
+                  >
+                    Train Search
+                  </button>
+                </div>
               </SignedIn>
-              <SignedOut>
-                <Link
-                  to="/sign-in"
-                  className="w-full text-left px-3 py-2 text-[#1E2203] hover:bg-gray-100 rounded-lg transition-colors duration-200"
-                >
-                  TCDD Bilet Notifica
-                </Link>
-                <button
-                  disabled
-                  className="w-full text-left px-3 py-2 text-[#1E2203] opacity-50 cursor-not-allowed"
-                >
-                  Vize Notifica (Coming Soon)
-                </button>
-              </SignedOut>
             </div>
           </div>
         </div>

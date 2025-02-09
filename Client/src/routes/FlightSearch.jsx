@@ -117,122 +117,109 @@ function FlightSearch() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#fbf9ef] py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-[#1E2203]">Uçak Bileti Ara</h1>
-        </div>
+    <div className="flex flex-col h-screen items-center">
+      <div className="flex flex-col gap-6 w-full max-w-2xl mx-auto p-12">
+        <h1 className="text-3xl font-bold text-center text-[#1E2203] mb-8">
+          Flight Ticket Search
+        </h1>
 
-        <div className="bg-white p-6 rounded-lg shadow space-y-4">
-          {/* Kalkış Havaalanı */}
-          <div className="relative airport-dropdown">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Kalkış Havaalanı
-            </label>
-            <input
-              type="text"
-              value={searchDeparture}
-              onChange={(e) => {
-                setSearchDeparture(e.target.value);
-                setShowDepartureDropdown(true);
-              }}
-              onFocus={() => setShowDepartureDropdown(true)}
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-[#9ebf3f] focus:ring-[#9ebf3f]"
-              placeholder="Havaalanı ara..."
-            />
-            {showDepartureDropdown && filteredDepartureAirports.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
-                {filteredDepartureAirports.map((airport) => (
-                  <div
-                    key={airport.icao}
-                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                    onClick={() => {
-                      setDeparture(airport.iata);
-                      setSearchDeparture(`${airport.city} (${airport.iata})`);
-                      setShowDepartureDropdown(false);
-                    }}
-                  >
-                    <div className="font-medium">
-                      {airport.city} ({airport.iata})
-                    </div>
-                    <div className="text-sm text-gray-600">{airport.name}</div>
+        {/* Departure Input ve Dropdown */}
+        <div className="w-full relative">
+          <label className="block text-base font-medium text-gray-700 mb-2">
+            Departure City
+          </label>
+          <input
+            type="text"
+            value={searchDeparture}
+            onChange={(e) => {
+              setSearchDeparture(e.target.value);
+              setShowDepartureDropdown(true);
+            }}
+            onFocus={() => setShowDepartureDropdown(true)}
+            placeholder="Enter departure city"
+            className="w-full px-4 py-3 text-base border-2 border-gray-200 rounded-lg focus:border-[#9ebf3f] focus:ring-[#9ebf3f] text-gray-300
+             transition-colors duration-200 hover:border-[#9ebf3f]"
+          />
+          {showDepartureDropdown && filteredDepartureAirports.length > 0 && (
+            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto airport-dropdown">
+              {filteredDepartureAirports.map((airport) => (
+                <div
+                  key={airport.iata}
+                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                  onClick={() => {
+                    setDeparture(airport.iata);
+                    setSearchDeparture(`${airport.city} (${airport.iata})`);
+                    setShowDepartureDropdown(false);
+                  }}
+                >
+                  <div className="font-medium">{airport.city}</div>
+                  <div className="text-sm text-gray-600">
+                    {airport.name} ({airport.iata})
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Varış Havaalanı */}
-          <div className="relative airport-dropdown">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Varış Havaalanı
-            </label>
-            <input
-              type="text"
-              value={searchArrival}
-              onChange={(e) => {
-                setSearchArrival(e.target.value);
-                setShowArrivalDropdown(true);
-              }}
-              onFocus={() => setShowArrivalDropdown(true)}
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-[#9ebf3f] focus:ring-[#9ebf3f]"
-              placeholder="Havaalanı ara..."
-            />
-            {showArrivalDropdown && filteredArrivalAirports.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
-                {filteredArrivalAirports.map((airport) => (
-                  <div
-                    key={airport.icao}
-                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                    onClick={() => {
-                      setArrival(airport.iata);
-                      setSearchArrival(`${airport.city} (${airport.iata})`);
-                      setShowArrivalDropdown(false);
-                    }}
-                  >
-                    <div className="font-medium">
-                      {airport.city} ({airport.iata})
-                    </div>
-                    <div className="text-sm text-gray-600">{airport.name}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Tarih Seçimi */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Gidiş Tarihi
-            </label>
-            <input
-              type="date"
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-[#9ebf3f] focus:ring-[#9ebf3f]"
-              min={new Date().toISOString().split('T')[0]}
-            />
-          </div>
-
-          <button
-            onClick={handleSearch}
-            disabled={loading}
-            className={`
-              w-full py-3 px-6
-              bg-[#9ebf3f] hover:bg-[#8ba835]
-              text-white font-semibold
-              rounded-lg
-              transition-colors duration-200
-              shadow-md hover:shadow-lg
-              disabled:opacity-50 disabled:cursor-not-allowed
-            `}
-          >
-            {loading ? 'Searching...' : 'Find Flights'}
-          </button>
-
-          {error && (
-            <div className="text-red-600 text-center mt-4">{error}</div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
+
+        {/* Arrival Input ve Dropdown */}
+        <div className="w-full relative">
+          <label className="block text-base font-medium text-gray-700 mb-2">
+            Arrival City
+          </label>
+          <input
+            type="text"
+            value={searchArrival}
+            onChange={(e) => {
+              setSearchArrival(e.target.value);
+              setShowArrivalDropdown(true);
+            }}
+            onFocus={() => setShowArrivalDropdown(true)}
+            placeholder="Enter arrival city"
+            className="w-full px-4 py-3 text-base border-2 border-gray-200 rounded-lg focus:border-[#9ebf3f] focus:ring-[#9ebf3f] text-gray-300 transition-colors duration-200 hover:border-[#9ebf3f]"
+          />
+          {showArrivalDropdown && filteredArrivalAirports.length > 0 && (
+            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto airport-dropdown">
+              {filteredArrivalAirports.map((airport) => (
+                <div
+                  key={airport.iata}
+                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                  onClick={() => {
+                    setArrival(airport.iata);
+                    setSearchArrival(`${airport.city} (${airport.iata})`);
+                    setShowArrivalDropdown(false);
+                  }}
+                >
+                  <div className="font-medium">{airport.city}</div>
+                  <div className="text-sm text-gray-600">
+                    {airport.name} ({airport.iata})
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Date Input */}
+        <div className="w-full">
+          <label className="block text-base font-medium text-gray-700 mb-2">
+            Journey Date
+          </label>
+          <input
+            type="date"
+            onChange={(e) => setDate(e.target.value)}
+            className="w-full px-4 py-3 text-base border-2 border-gray-200 rounded-lg focus:border-[#9ebf3f] focus:ring-[#9ebf3f] text-gray-300 transition-colors duration-200 hover:border-[#9ebf3f]"
+            min={new Date().toISOString().split('T')[0]}
+          />
+        </div>
+
+        <button
+          onClick={handleSearch}
+          disabled={loading}
+          className="w-full py-3 px-6 bg-[#9ebf3f] hover:bg-[#8ba835] text-white font-semibold rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+        >
+          {loading ? 'Searching...' : 'Search Flights'}
+        </button>
       </div>
 
       {loading && (
@@ -241,7 +228,7 @@ function FlightSearch() {
             <div className="flex flex-col items-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
               <p className="text-lg font-semibold text-blue-600">
-                Uçuşlar aranıyor...
+                Searching for flights...
               </p>
             </div>
           </div>
