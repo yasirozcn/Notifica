@@ -7,9 +7,9 @@ services:
     pullRequestPreviewsEnabled: true
     envVars:
       - key: VITE_API_URL
-        value: "https://biletbul-backend.onrender.com" # Backend URL'inizi buraya yazın
+        value: "http://localhost:8080""
       - key: VITE_CLERK_PUBLISHABLE_KEY
-        value: "your_clerk_publishable_key" # Clerk public key'inizi buraya yazın
+        value: "pk_test_Y29tcGxldGUtY2F0dGxlLTgwLmNsZXJrLmFjY291bnRzLmRldiQ"
     headers:
       - path: /*
         name: Cache-Control
