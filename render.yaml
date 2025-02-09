@@ -7,7 +7,7 @@ services:
     pullRequestPreviewsEnabled: true
     envVars:
       - key: VITE_API_URL
-        value: "http://localhost:8080""
+        value: "http://localhost:8080"
       - key: VITE_CLERK_PUBLISHABLE_KEY
         value: "pk_test_Y29tcGxldGUtY2F0dGxlLTgwLmNsZXJrLmFjY291bnRzLmRldiQ"
     headers:

@@ -1,16 +1,12 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { postRequest } from '../api';
 import StationsSelect from '../components/StationSelect';
 import HourChoices from '../components/HourChoices';
 import stationsJson from '../stations.json';
 import '../App.css';
-import NavBar from '../components/NavBar';
 import { api } from '../utils/axios';
 import { API_BASE_URL } from '../config/api';
-
-const SEFER_URL = 'https://api-yebsp.tcddtasimacilik.gov.tr/sefer/seferSorgula';
 
 const TrainSearch = () => {
   const navigate = useNavigate();
@@ -21,7 +17,6 @@ const TrainSearch = () => {
   });
   const [date, setDate] = useState('');
   const [journeys, setJourneys] = useState(null);
-  const [selectedHours, setSelectedHours] = useState([]);
   const [business, setBusiness] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState('');
