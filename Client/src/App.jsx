@@ -109,7 +109,6 @@ const App = () => {
 
       let errorMessage = 'Seferler alınırken bir hata oluştu: ';
       if (error.response) {
-        // Server yanıt verdi ama hata kodu döndü
         errorMessage += error.response.data.error || error.message;
       } else if (error.request) {
         // İstek yapıldı ama yanıt alınamadı

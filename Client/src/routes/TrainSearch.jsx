@@ -7,7 +7,7 @@ import HourChoices from '../components/HourChoices';
 import stationsJson from '../stations.json';
 import '../App.css';
 import NavBar from '../components/NavBar';
-import api from '../utils/axios';
+import { api } from '../utils/axios';
 import { API_BASE_URL } from '../config/api';
 
 const SEFER_URL = 'https://api-yebsp.tcddtasimacilik.gov.tr/sefer/seferSorgula';
@@ -29,7 +29,7 @@ const TrainSearch = () => {
   const toggleHandler = () => {
     setBusiness((prevState) => !prevState);
   };
-  
+
   useEffect(() => {
     setStations(stationsJson);
   }, []);
@@ -126,8 +126,10 @@ const TrainSearch = () => {
   return (
     <div className="flex flex-col h-screen items-center">
       <div className="flex flex-col gap-4 w-full max-w-2xl mx-auto p-6">
-        <h1 className="text-3xl font-bold text-center text-[#1E2203] mb-8">Tren Bileti Ara</h1>
-        
+        <h1 className="text-3xl font-bold text-center text-[#1E2203] mb-8">
+          Tren Bileti Ara
+        </h1>
+
         <StationsSelect
           stations={stations}
           selectedStations={selectedStations}
