@@ -1,0 +1,7 @@
+dist
+dist-ssr
+*.local
+.env
+.env.local
+# Don't ignore .env.production
+!.env.production 

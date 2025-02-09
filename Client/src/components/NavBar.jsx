@@ -46,13 +46,16 @@ function NavBar() {
             <SignedOut>
               <ul className="flex gap-6">
                 <li
-                  onClick={() => navigate('/sign-in')}
-                  className="cursor-pointer"
+                  onClick={() => navigate('/alarm')}
+                  className="cursor-pointer text-black font-bold"
                 >
                   TCDD Bilet Notifica
                 </li>
-                <li className="opacity-50 cursor-not-allowed">
-                  Vize Notifica (Coming Soon)
+                <li
+                  onClick={() => navigate('/flight')}
+                  className="cursor-pointer text-black font-bold"
+                >
+                  Uçak Bileti Ara
                 </li>
               </ul>
             </SignedOut>

@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: biletbul-frontend
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    pullRequestPreviewsEnabled: true
+    envVars:
+      - key: VITE_API_URL
+        value: "https://biletbul-backend.onrender.com" # Backend URL'inizi buraya yazın
+      - key: VITE_CLERK_PUBLISHABLE_KEY
+        value: "your_clerk_publishable_key" # Clerk public key'inizi buraya yazın
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
