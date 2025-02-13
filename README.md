@@ -55,6 +55,7 @@ Backend is not deployed yet. Still development in progress
 
 ## Project Structure
 
+```
 notifica/
 ├── BE/ # Backend directory
 │ ├── models/ # MongoDB models
@@ -69,6 +70,7 @@ notifica/
 │ │ ├── config/ # Configuration files
 │ │ └── assets/ # Static assets
 │ └── public/ # Public assets
+```
 
 ## Features in Detail
 
