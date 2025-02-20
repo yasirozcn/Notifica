@@ -148,7 +148,7 @@ function NavBar() {
                   </button>
                   <button
                     onClick={() => {
-                      navigate('/train');
+                      navigate('/alarm');
                       setIsMenuOpen(false);
                     }}
                     className="flex-1 py-2 px-4 text-center text-[#1E2203] bg-[#E6E1D7] rounded-lg hover:bg-[#d8d3c9] transition-colors duration-200"
