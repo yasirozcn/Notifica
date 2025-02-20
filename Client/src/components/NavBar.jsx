@@ -139,7 +139,7 @@ function NavBar() {
                 <div className="flex gap-2 justify-between">
                   <button
                     onClick={() => {
-                      navigate('/flight-search');
+                      navigate('/flight');
                       setIsMenuOpen(false);
                     }}
                     className="flex-1 py-2 px-4 text-center text-[#1E2203] bg-[#E6E1D7] rounded-lg hover:bg-[#d8d3c9] transition-colors duration-200"
@@ -148,7 +148,7 @@ function NavBar() {
                   </button>
                   <button
                     onClick={() => {
-                      navigate('/train-search');
+                      navigate('/train');
                       setIsMenuOpen(false);
                     }}
                     className="flex-1 py-2 px-4 text-center text-[#1E2203] bg-[#E6E1D7] rounded-lg hover:bg-[#d8d3c9] transition-colors duration-200"
