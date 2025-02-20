@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = import("mongoose");
 
 const alarmSchema = new mongoose.Schema({
   userId: String,
