@@ -58,7 +58,7 @@ const TrainSearch = () => {
     }
   }
 
-  async function fetchJourneys() {
+  const fetchJourneys = async () => {
     if (
       !selectedStations.binisIstasyonAdi ||
       !selectedStations.inisIstasyonAdi ||
@@ -69,7 +69,6 @@ const TrainSearch = () => {
     }
 
     setLoading(true);
-    setLoadingStatus('İstek hazırlanıyor...');
 
     try {
       const formattedDate = formatDateToTCDDFormat(date);
@@ -89,7 +88,6 @@ const TrainSearch = () => {
 
       if (response.data) {
         console.log('API Response:', response.data);
-        // Sonuçları alınca yeni sayfaya yönlendir
         navigate('/train-results', { state: { journeys: response.data } });
       }
     } catch (error) {
@@ -114,9 +112,8 @@ const TrainSearch = () => {
       alert(errorMessage);
     } finally {
       setLoading(false);
-      setLoadingStatus('');
     }
-  }
+  };
 
   return (
     <div className="flex flex-col h-screen items-center">

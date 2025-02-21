@@ -1,38 +1,18 @@
 import React from 'react';
-import { createRoot } from 'react-dom';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import { ClerkProvider } from '@clerk/clerk-react';
+import App from './App';
 import './index.css';
-import { RouterProvider, createBrowserRouter } from 'react-router-dom';
 
-// Import the layouts
-import RootLayout from './layouts/root-layout';
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-// Import the components
-import Home from './routes/Home';
-import SignInPage from './routes/SignInPage';
-import SignUpPage from './routes/SignUpPage';
-import FlightSearch from './routes/FlightSearch';
-import TrainSearch from './routes/TrainSearch';
-import FlightResults from './routes/FlightResults';
-import TrainResults from './routes/TrainResults';
-
-const router = createBrowserRouter([
-  {
-    element: <RootLayout />,
-    children: [
-      { path: '/', element: <Home /> },
-      { path: '/alarm', element: <TrainSearch /> },
-      { path: '/sign-in/*', element: <SignInPage /> },
-      { path: '/sign-up/*', element: <SignUpPage /> },
-      { path: '/flight', element: <FlightSearch /> },
-      { path: '/flight-results', element: <FlightResults /> },
-      { path: '/train', element: <TrainSearch /> },
-      { path: '/train-results', element: <TrainResults /> },
-    ],
-  },
-]);
-
-createRoot(document.getElementById('root')).render(
+ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <RouterProvider router={router} />
+    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </ClerkProvider>
   </React.StrictMode>
 );

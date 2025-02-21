@@ -41,6 +41,12 @@ function NavBar() {
                 >
                   Flight Ticket Search
                 </li>
+                <li
+                  onClick={() => navigate('/my-alarms')}
+                  className="cursor-pointer text-black font-bold"
+                >
+                  My Notifica&apos;s
+                </li>
               </ul>
             </SignedIn>
             <SignedOut>
@@ -56,6 +62,12 @@ function NavBar() {
                   className="cursor-pointer text-black font-bold"
                 >
                   Flight Ticket Search
+                </li>
+                <li
+                  onClick={() => navigate('/my-alarms')}
+                  className="cursor-pointer text-black font-bold"
+                >
+                  My Alarms
                 </li>
               </ul>
             </SignedOut>
@@ -154,6 +166,15 @@ function NavBar() {
                     className="flex-1 py-2 px-4 text-center text-[#1E2203] bg-[#E6E1D7] rounded-lg hover:bg-[#d8d3c9] transition-colors duration-200"
                   >
                     Train Search
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigate('/my-alarms');
+                      setIsMenuOpen(false);
+                    }}
+                    className="flex-1 py-2 px-4 text-center text-[#1E2203] bg-[#E6E1D7] rounded-lg hover:bg-[#d8d3c9] transition-colors duration-200"
+                  >
+                    My Notifica&apos;s
                   </button>
                 </div>
               </SignedIn>
