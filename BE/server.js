@@ -9,6 +9,7 @@ const dotenv = require("dotenv");
 const Alarm = require("./models/Alarm");
 const nodemailer = require("nodemailer");
 const debug = require("debug")("app:server");
+const createTicketNotificationEmail = require("./utils/email-template");
 
 // Load environment variables
 dotenv.config();
@@ -55,71 +56,95 @@ app.use((err, req, res, next) => {
 
 // Email sending function without OAuth (temporary solution)
 async function sendEmail(to, ticketInfo) {
+  console.log("Attempting to send ticket notification email to:", to);
+  console.log("Email credentials:", {
+    user: process.env.EMAIL_USER,
+    pass: "****", // password gizli
+  });
+
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD,
+      pass: process.env.EMAIL_PASSWORD_NODE, // NODE versiyonunu kullan
     },
   });
 
+  // Test email connection
   try {
-    await transporter.sendMail({
+    await transporter.verify();
+    console.log("Email connection verified successfully");
+  } catch (error) {
+    console.error("Email connection verification failed:", error);
+    throw error;
+  }
+
+  const emailContent = createTicketNotificationEmail(ticketInfo);
+
+  try {
+    const info = await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: to,
-      subject: "Bilet Bulundu!",
-      text: `Aradığınız bilet müsait: ${JSON.stringify(ticketInfo)}`,
+      ...emailContent,
     });
-    console.log("Email sent successfully");
+    console.log("Email sent successfully:", info.response);
+    return info;
   } catch (error) {
     console.error("Error sending email:", error);
+    throw error;
   }
 }
 
 // Web scraping function
 async function scrapeTickets(from, to, date) {
-  let browser = null;
+  const browser = await puppeteer.launch({
+    headless: "new",
+    executablePath:
+      process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium",
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+    ],
+  });
+
+  const page = await browser.newPage();
+  let trainData = null;
 
   try {
-    console.log("Launching browser with args...");
-    browser = await puppeteer.launch({
-      headless: "new",
-      executablePath:
-        process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium",
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-      ],
-    });
-
-    const page = await browser.newPage();
-    let trainData = null;
-
     // Network isteğini dinlemeye başla
     await page.setRequestInterception(true);
+
     page.on("request", (request) => {
-      console.log("Outgoing request URL:", request.url());
-      request.continue();
+      // Google Analytics isteklerini engelle
+      if (request.url().includes("google-analytics.com")) {
+        request.abort();
+      } else {
+        request.continue();
+      }
     });
+
+    // Response listener'ı
     page.on("response", async (response) => {
       const url = response.url();
-      console.log("Incoming response URL:", url);
+      if (url.includes("train-availability?environment=dev")) {
+        console.log("Train API Response intercepted");
+        console.log("Status:", response.status());
 
-      // Hem dev hem prod environment kontrolü
-      if (url.includes("train-availability") || url.includes("seferSorgula")) {
         try {
+          // Response'u text olarak al
           const responseText = await response.text();
-          console.log(
-            "Raw train data response:",
-            responseText.substring(0, 200)
-          ); // İlk 200 karakter
-          trainData = JSON.parse(responseText);
+          console.log("Raw response text:", responseText);
+
+          if (responseText) {
+            trainData = JSON.parse(responseText);
+            console.log("Parsed train data:", trainData);
+          }
         } catch (error) {
-          console.error("Error parsing response:", error);
-          console.error("Response status:", response.status());
-          console.error("Response headers:", response.headers());
+          if (!error.message.includes("Target closed")) {
+            console.error("Error parsing response:", error);
+          }
         }
       }
     });
@@ -169,25 +194,141 @@ async function scrapeTickets(from, to, date) {
     console.log("Clicking search button...");
     await page.click("#searchSeferButton");
 
-    // Sonuçları bekle
-    console.log("Waiting for results...");
-    await new Promise((resolve) => setTimeout(resolve, 8000));
+    // vld-overlay'in kaybolmasını bekle
+    console.log("Waiting for overlay to disappear...");
+    await page.waitForFunction(
+      () => {
+        const overlay = document.querySelector(".vld-overlay");
+        return overlay && window.getComputedStyle(overlay).display === "none";
+      },
+      { timeout: 60000 }
+    );
+
+    // API yanıtının gelmesi için yeterli süre bekle
+    await new Promise((resolve) => setTimeout(resolve, 10000));
 
     if (!trainData) {
-      console.log("No train data received after search");
-      return { apiResponse: null };
+      console.log("No train data received");
+      return { error: "Sefer bulunamadı veya veri alınamadı." };
     }
 
-    console.log("Train data received successfully");
     return { apiResponse: trainData };
   } catch (error) {
-    console.error("Scraping error:", error);
-    return { apiResponse: null, error: error.message };
+    console.error("Error during scraping:", error);
+    throw error;
   } finally {
     if (browser) {
-      console.log("Closing browser...");
       await browser.close();
     }
+  }
+}
+
+// Alarm kurulduğunda bildirim gönderen fonksiyon
+async function sendAlarmCreationEmail(to, alarmInfo) {
+  console.log("Attempting to send alarm creation email to:", to);
+  console.log("Email credentials:", {
+    user: process.env.EMAIL_USER,
+    pass: "****", // password gizli
+  });
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD_NODE, // NODE versiyonunu kullan
+    },
+  });
+
+  // Test email connection
+  try {
+    await transporter.verify();
+    console.log("Email connection verified successfully");
+  } catch (error) {
+    console.error("Email connection verification failed:", error);
+    throw error;
+  }
+
+  const emailContent = {
+    subject: "🔔 Tren Bileti Alarmı Kuruldu",
+    html: `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              line-height: 1.6;
+              color: #333;
+            }
+            .container {
+              max-width: 600px;
+              margin: 0 auto;
+              padding: 20px;
+            }
+            .header {
+              background-color: #1a365d;
+              color: white;
+              padding: 20px;
+              text-align: center;
+              border-radius: 5px 5px 0 0;
+            }
+            .content {
+              background-color: #f9fafb;
+              padding: 20px;
+              border: 1px solid #e5e7eb;
+              border-radius: 0 0 5px 5px;
+            }
+            .ticket-info {
+              background-color: white;
+              padding: 15px;
+              margin: 10px 0;
+              border-radius: 5px;
+              border: 1px solid #e5e7eb;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>Tren Bileti Alarmı Kuruldu</h1>
+            </div>
+            <div class="content">
+              <p>Merhaba,</p>
+              <p>Aşağıdaki sefer için bilet alarmı başarıyla kuruldu:</p>
+              
+              <div class="ticket-info">
+                <h3>Sefer Detayları:</h3>
+                <p><strong>Kalkış:</strong> ${alarmInfo.from}</p>
+                <p><strong>Varış:</strong> ${alarmInfo.to}</p>
+                <p><strong>Tarih:</strong> ${alarmInfo.date}</p>
+                <p><strong>Saat:</strong> ${alarmInfo.selectedTime}</p>
+              </div>
+
+              <p>Seçtiğiniz seferde boş koltuk bulunduğunda size haber vereceğiz.</p>
+              <p>Her 15 dakikada bir kontrol yapılacak ve bilet bulunduğunda size bildirim gönderilecektir.</p>
+
+              <p style="margin-top: 20px; font-size: 12px; color: #666;">
+                Bu email otomatik olarak gönderilmiştir. Lütfen cevaplamayınız.
+              </p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: to,
+      ...emailContent,
+    });
+    console.log("Alarm creation email sent successfully:", info.response);
+    return info;
+  } catch (error) {
+    console.error("Error sending alarm creation email:", error);
+    throw error;
   }
 }
 
@@ -196,6 +337,15 @@ app.post("/create-alarm", async (req, res) => {
   const { userId, from, to, date, selectedTime, email } = req.body;
 
   try {
+    console.log("Creating alarm with data:", {
+      userId,
+      from,
+      to,
+      date,
+      selectedTime,
+      email,
+    });
+
     const alarm = new Alarm({
       userId,
       from,
@@ -206,31 +356,98 @@ app.post("/create-alarm", async (req, res) => {
     });
 
     await alarm.save();
+    console.log("Alarm saved successfully:", alarm._id);
+
+    // Alarm kurulduğunda bildirim gönder
+    try {
+      await sendAlarmCreationEmail(email, {
+        from,
+        to,
+        date,
+        selectedTime,
+      });
+      console.log("Alarm creation email sent successfully");
+    } catch (emailError) {
+      console.error("Failed to send alarm creation email:", emailError);
+      // Email gönderimi başarısız olsa bile alarm kaydedildi, devam et
+    }
+
     res.json({ success: true, alarmId: alarm._id });
   } catch (error) {
+    console.error("Error in create-alarm endpoint:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // Check alarms every 15 minutes
 cron.schedule("*/15 * * * *", async () => {
-  const activeAlarms = await Alarm.find({ isActive: true });
+  console.log("Checking active alarms...");
+  try {
+    const activeAlarms = await Alarm.find({ isActive: true });
+    console.log(`Found ${activeAlarms.length} active alarms`);
 
-  for (const alarm of activeAlarms) {
-    try {
-      const tickets = await scrapeTickets(alarm.from, alarm.to, alarm.date);
-      const availableTicket = tickets.find(
-        (t) => t.time === alarm.selectedTime && parseInt(t.availableSeats) > 0
-      );
+    for (const alarm of activeAlarms) {
+      try {
+        // Alarm verilerinin kontrolü
+        if (!alarm.from || !alarm.to || !alarm.date || !alarm.selectedTime) {
+          console.error(`Invalid alarm data for ${alarm._id}:`, alarm);
+          continue;
+        }
 
-      if (availableTicket) {
-        await sendEmail(alarm.email, availableTicket);
-        alarm.isActive = false;
-        await alarm.save();
+        console.log(
+          `Checking alarm ${alarm._id} for ${alarm.from} to ${alarm.to} at ${alarm.date}`
+        );
+
+        const result = await scrapeTickets(alarm.from, alarm.to, alarm.date);
+
+        if (result.apiResponse) {
+          const trainData = result.apiResponse;
+          const availableTicket =
+            trainData.trainLegs[0].trainAvailabilities.find((train) => {
+              const totalAvailability = train.trains[0].cars.reduce(
+                (total, car) => {
+                  return total + (car.availabilities[0]?.availability || 0);
+                },
+                0
+              );
+              return (
+                train.departureTime === alarm.selectedTime &&
+                totalAvailability > 0
+              );
+            });
+
+          if (availableTicket) {
+            console.log(`Found available ticket for alarm ${alarm._id}`);
+            const ticketInfo = {
+              from: alarm.from,
+              to: alarm.to,
+              date: alarm.date,
+              selectedTime: alarm.selectedTime,
+              availableSeats: availableTicket.trains[0].cars.reduce(
+                (total, car) => {
+                  return total + (car.availabilities[0]?.availability || 0);
+                },
+                0
+              ),
+              price: availableTicket.minPrice,
+            };
+
+            await sendEmail(alarm.email, ticketInfo);
+            alarm.isActive = false;
+            await alarm.save();
+            console.log(
+              `Alarm ${alarm._id} deactivated after sending notification`
+            );
+          } else {
+            console.log(`No available tickets found for alarm ${alarm._id}`);
+          }
+        }
+      } catch (error) {
+        console.error(`Alarm check failed for ${alarm._id}:`, error);
       }
-    } catch (error) {
-      console.error(`Alarm check failed for ${alarm._id}:`, error);
     }
+  } catch (error) {
+    console.error("Error in cron job:", error);
   }
 });
 
@@ -555,6 +772,52 @@ app.get("/search-flights", async (req, res) => {
       error: "Uçuş arama sırasında bir hata oluştu",
       details: error.message,
     });
+  }
+});
+
+// Kullanıcının alarmlarını getiren endpoint
+app.get("/user-alarms/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const alarms = await Alarm.find({ userId })
+      .sort({ createdAt: -1 }) // En son oluşturulan alarmlar önce gelsin
+      .select("-__v"); // Gereksiz alanları çıkar
+
+    console.log(`Retrieved ${alarms.length} alarms for user ${userId}`);
+
+    res.json({
+      success: true,
+      alarms: alarms.map((alarm) => ({
+        id: alarm._id,
+        from: alarm.from,
+        to: alarm.to,
+        date: alarm.date,
+        selectedTime: alarm.selectedTime,
+        isActive: alarm.isActive,
+        createdAt: alarm.createdAt,
+      })),
+    });
+  } catch (error) {
+    console.error("Error fetching user alarms:", error);
+    res.status(500).json({ error: "Alarmlar getirilirken bir hata oluştu" });
+  }
+});
+
+// Alarm silme endpoint'i
+app.delete("/alarms/:alarmId", async (req, res) => {
+  try {
+    const { alarmId } = req.params;
+    const alarm = await Alarm.findByIdAndDelete(alarmId);
+
+    if (!alarm) {
+      return res.status(404).json({ error: "Alarm bulunamadı" });
+    }
+
+    res.json({ success: true, message: "Alarm başarıyla silindi" });
+  } catch (error) {
+    console.error("Error deleting alarm:", error);
+    res.status(500).json({ error: "Alarm silinirken bir hata oluştu" });
   }
 });
 
