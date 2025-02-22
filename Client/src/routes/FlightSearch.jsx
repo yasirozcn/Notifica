@@ -90,10 +90,10 @@ function FlightSearch() {
 
       const data = await response.json();
 
-      // API yanıtını doğrudan kullan
       navigate('/flight-results', {
         state: {
           flightInfo: data,
+          date: formattedDate,
         },
       });
     } catch (error) {

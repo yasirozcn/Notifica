@@ -10,6 +10,8 @@ const Alarm = require("./models/Alarm");
 const nodemailer = require("nodemailer");
 const debug = require("debug")("app:server");
 const createTicketNotificationEmail = require("./utils/email-template");
+const FlightAlarm = require("./models/FlightAlarm");
+const { createFlightAlarmEmail } = require("./utils/email-template");
 
 // Load environment variables
 dotenv.config();
@@ -55,7 +57,7 @@ app.use((err, req, res, next) => {
 });
 
 // Email sending function without OAuth (temporary solution)
-async function sendEmail(to, ticketInfo) {
+async function sendEmail(to, emailContent) {
   console.log("Attempting to send ticket notification email to:", to);
   console.log("Email credentials:", {
     user: process.env.EMAIL_USER,
@@ -78,8 +80,6 @@ async function sendEmail(to, ticketInfo) {
     console.error("Email connection verification failed:", error);
     throw error;
   }
-
-  const emailContent = createTicketNotificationEmail(ticketInfo);
 
   try {
     const info = await transporter.sendMail({
@@ -493,6 +493,7 @@ app.get("/scrape-tickets", async (req, res) => {
     });
   }
 });
+
 // Uçak bileti arama endpoint'i
 app.get("/search-flights", async (req, res) => {
   const { departure, arrival, date } = req.query;
@@ -824,6 +825,191 @@ app.delete("/alarms/:alarmId", async (req, res) => {
 // Health check endpoint
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "OK" });
+});
+
+// Check flight alarms every hour
+cron.schedule("0 * * * *", async () => {
+  console.log("Checking active flight alarms...");
+  try {
+    const activeFlightAlarms = await FlightAlarm.find({ isActive: true });
+    console.log(`Found ${activeFlightAlarms.length} active flight alarms`);
+
+    for (const alarm of activeFlightAlarms) {
+      try {
+        if (
+          !alarm.from ||
+          !alarm.to ||
+          !alarm.date ||
+          !alarm.time ||
+          !alarm.airline
+        ) {
+          console.error(`Invalid flight alarm data for ${alarm._id}:`, alarm);
+          continue;
+        }
+
+        console.log(
+          `Checking flight alarm ${alarm._id} for ${alarm.from} to ${alarm.to} at ${alarm.date}`
+        );
+
+        // Mevcut search-flights endpoint'ini kullan
+        const searchResponse = await new Promise((resolve, reject) => {
+          const req = {
+            query: {
+              departure: alarm.from,
+              arrival: alarm.to,
+              date: alarm.date,
+            },
+          };
+
+          const res = {
+            json: resolve,
+            status: function (code) {
+              return {
+                json: (data) => {
+                  reject({ code, ...data });
+                },
+              };
+            },
+          };
+
+          app._router.handle(req, res, (err) => {
+            if (err) reject(err);
+          });
+        });
+
+        if (
+          searchResponse &&
+          searchResponse.flightInfo &&
+          searchResponse.flightInfo.flights
+        ) {
+          const matchingFlight = searchResponse.flightInfo.flights.find(
+            (flight) => {
+              const [departureTime] = flight.timeInfo.split(" → ");
+              return (
+                flight.airline === alarm.airline &&
+                departureTime.trim() === alarm.time
+              );
+            }
+          );
+
+          if (matchingFlight) {
+            const currentPrice = parseFloat(
+              matchingFlight.price.replace(/[^0-9]/g, "")
+            );
+            const previousPrice = alarm.currentPrice;
+            const priceDrop = previousPrice - currentPrice;
+
+            // Fiyat düşüşünü kontrol et
+            if (currentPrice < previousPrice) {
+              console.log(`Price drop detected for flight alarm ${alarm._id}`);
+
+              const flightInfo = {
+                from: alarm.from,
+                to: alarm.to,
+                date: alarm.date,
+                time: alarm.time,
+                airline: alarm.airline,
+                currentPrice: currentPrice,
+                previousPrice: previousPrice,
+                priceDrop: priceDrop,
+              };
+
+              // Email gönder
+              await sendEmail(alarm.email, createFlightAlarmEmail(flightInfo));
+
+              // Alarm fiyatını güncelle
+              alarm.currentPrice = currentPrice;
+              await alarm.save();
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`Flight alarm check failed for ${alarm._id}:`, error);
+      }
+    }
+  } catch (error) {
+    console.error("Error in flight alarm cron job:", error);
+  }
+});
+
+// Create flight alarm endpoint
+app.post("/create-flight-alarm", async (req, res) => {
+  try {
+    const { userId, from, to, date, time, airline, currentPrice, email } =
+      req.body;
+
+    console.log("Gelen alarm verisi:", req.body);
+
+    // Veri kontrolü
+    const missingFields = [];
+    if (!userId) missingFields.push("userId");
+    if (!from) missingFields.push("from");
+    if (!to) missingFields.push("to");
+    if (!date) missingFields.push("date");
+    if (!time) missingFields.push("time");
+    if (!airline) missingFields.push("airline");
+    if (!currentPrice) missingFields.push("currentPrice");
+    if (!email) missingFields.push("email");
+
+    if (missingFields.length > 0) {
+      console.error("Eksik alanlar:", missingFields);
+      return res.status(400).json({
+        error: "Eksik alanlar mevcut",
+        missingFields,
+        received: req.body,
+      });
+    }
+
+    const newFlightAlarm = new FlightAlarm({
+      userId,
+      from,
+      to,
+      date,
+      time,
+      airline,
+      initialPrice: currentPrice,
+      currentPrice,
+      email,
+      isActive: true,
+    });
+
+    console.log("Oluşturulacak alarm:", newFlightAlarm);
+
+    await newFlightAlarm.save();
+    console.log("Alarm kaydedildi:", newFlightAlarm._id);
+
+    // Alarm kurulduğunda bildirim emaili gönder
+    try {
+      const emailContent = createFlightAlarmEmail({
+        from,
+        to,
+        date,
+        time,
+        airline,
+        currentPrice,
+        previousPrice: currentPrice,
+        priceDrop: 0,
+      });
+
+      await sendEmail(email, emailContent);
+      console.log("Bildirim emaili gönderildi");
+    } catch (emailError) {
+      console.error("Email gönderimi başarısız:", emailError);
+      // Email hatası olsa bile alarm kaydedildi, devam et
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "Flight alarm created successfully",
+      alarmId: newFlightAlarm._id,
+    });
+  } catch (error) {
+    console.error("Alarm oluşturma hatası:", error);
+    res.status(500).json({
+      error: "Failed to create flight alarm",
+      details: error.message,
+    });
+  }
 });
 
 const PORT = process.env.PORT || 8080;

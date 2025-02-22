@@ -20,6 +20,7 @@ const HourChoices = ({ journeys }) => {
 
   const trainData = journeys.apiResponse;
 
+  console.log('Train Data:', trainData);
   const handleTrainSelect = (trainId) => {
     setSelectedTrains((prev) => {
       if (prev.includes(trainId)) {
@@ -94,6 +95,7 @@ const HourChoices = ({ journeys }) => {
     <div className="hour-choices flex flex-col gap-4">
       <div className="grid gap-2">
         {trainData.trainLegs[0].trainAvailabilities.map((train, index) => {
+          console.log('Train:', train);
           const trainId = train.trains[0].id;
           const totalAvailability = calculateTotalAvailability(train);
 

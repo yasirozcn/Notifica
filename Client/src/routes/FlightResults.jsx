@@ -1,13 +1,19 @@
 /* eslint-disable no-unused-vars */
-import React from 'react';
+import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
+import { api } from '../utils/axios';
+import { API_BASE_URL } from '../config/api';
 
 function FlightResults() {
   const location = useLocation();
   const navigate = useNavigate();
   const { flightInfo } = location.state || {};
+  const [selectedFlights, setSelectedFlights] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const { user, isSignedIn } = useUser();
 
-  console.log('Flight Info:', flightInfo.flightInfo.flights); // API yanıtını kontrol etmek için
+  console.log('Flight Info:', flightInfo?.flightInfo?.flights);
 
   if (!flightInfo) {
     return (
@@ -26,59 +32,212 @@ function FlightResults() {
     );
   }
 
+  const handleFlightSelect = (index) => {
+    setSelectedFlights((prev) => {
+      if (prev.includes(index)) {
+        return prev.filter((i) => i !== index);
+      } else {
+        return [...prev, index];
+      }
+    });
+  };
+
+  const handleCreateAlarm = async () => {
+    if (!isSignedIn) {
+      navigate('/sign-in');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const selectedFlightData = selectedFlights.map((index) => {
+        const flight = flightInfo.flightInfo.flights[index];
+        console.log('İşlenen uçuş bilgisi:', flight);
+
+        // Route'dan kalkış ve varış bilgilerini al
+        const routeParts = flight.route.split(' → ').map((part) => {
+          return part.trim();
+        });
+        console.log('routeParts', routeParts);
+        const from = routeParts[0];
+        const to = routeParts[routeParts.length - 1];
+        console.log(from, to);
+        // Fiyatı temizle ve sayıya çevir
+        const price = parseFloat(flight.price.replace(/[^0-9]/g, ''));
+
+        // Zamanları ayır
+        const [departureTime] = flight.timeInfo
+          .split(' → ')
+          .map((time) => time.trim());
+
+        // Kontrol amaçlı log
+        const alarmData = {
+          userId: user.id,
+          from,
+          to,
+          date: location.state.date,
+          time: departureTime,
+          airline: flight.airline,
+          currentPrice: price,
+          email: user.primaryEmailAddress.emailAddress,
+        };
+
+        console.log('Gönderilecek alarm verisi:', alarmData);
+
+        // Veri kontrolü
+        if (
+          !alarmData.userId ||
+          !alarmData.from ||
+          !alarmData.to ||
+          !alarmData.date ||
+          !alarmData.time ||
+          !alarmData.airline ||
+          !alarmData.currentPrice ||
+          !alarmData.email
+        ) {
+          throw new Error('Eksik veri: ' + JSON.stringify(alarmData));
+        }
+
+        return alarmData;
+      });
+
+      console.log('Tüm seçili uçuşlar:', selectedFlightData);
+
+      for (const flightData of selectedFlightData) {
+        try {
+          console.log(
+            'API isteği gönderiliyor:',
+            `${API_BASE_URL}/create-flight-alarm`,
+            flightData
+          );
+
+          const response = await api.post(
+            `${API_BASE_URL}/create-flight-alarm`,
+            flightData
+          );
+          console.log('API yanıtı:', response.data);
+
+          if (response.data.success) {
+            console.log('Alarm başarıyla oluşturuldu:', response.data.alarmId);
+          } else {
+            throw new Error('API başarısız yanıt döndü');
+          }
+        } catch (error) {
+          console.error('Alarm oluşturma hatası detayları:', {
+            message: error.message,
+            response: error.response?.data,
+            status: error.response?.status,
+            data: flightData,
+          });
+          throw error;
+        }
+      }
+
+      alert('Seçili uçuşlar için fiyat alarmları başarıyla kuruldu!');
+    } catch (error) {
+      console.error('Alarm oluşturma hatası:', error);
+      alert(`Alarm oluşturulurken bir hata oluştu: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#fbf9ef] py-12 px-4 sm:px-6 lg:px-8">
-      {flightInfo && (
-        <div className="mt-8">
-          <div className=" flex flex-row items-center justify-between ">
-            <h2 className="text-xl font-bold mb-4 text-[#9ebf3f]">
-              Bulunan Uçuşlar ({flightInfo?.flightInfo?.totalFlights})
-            </h2>
-            <button
-              onClick={() => navigate('/flight')}
-              className="mb-4 px-4 py-2 bg-[#9ebf3f] text-white rounded-lg hover:bg-[#8ba835] transition-colors"
+      <div className="max-w-3xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-[#1E2203]">Uçuş Seferleri</h1>
+          <button
+            onClick={() => navigate('/flight')}
+            className="px-4 py-2 bg-[#9ebf3f] text-white rounded-lg hover:bg-[#8ba835] transition-colors"
+          >
+            Yeni Arama
+          </button>
+        </div>
+
+        <div className="grid gap-4">
+          {flightInfo.flightInfo.flights.map((flight, index) => (
+            <div
+              key={index}
+              className="flex items-center gap-2 p-4 bg-white rounded-lg shadow"
             >
-              Aramaya Geri Dön
-            </button>
-          </div>
-          <div className="space-y-4">
-            {flightInfo?.flightInfo?.flights?.map((flight, index) => (
-              <div
-                key={index}
-                className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow"
+              <input
+                type="checkbox"
+                id={`flight-${index}`}
+                checked={selectedFlights.includes(index)}
+                onChange={() => handleFlightSelect(index)}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                disabled={isLoading}
+              />
+              <label
+                htmlFor={`flight-${index}`}
+                className="flex flex-1 justify-between items-center cursor-pointer"
               >
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-4">
-                    {flight?.airlineIcon && (
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    {flight.airlineIcon && (
                       <img
-                        src={flight?.airlineIcon}
-                        alt={flight?.airline}
-                        className="w-8 h-8 object-contain"
+                        src={flight.airlineIcon}
+                        alt={flight.airline}
+                        className="h-8 w-auto"
                       />
                     )}
-                    <div>
-                      <div className="text-sm text-gray-600 mb-1">
-                        {flight?.airline}
-                      </div>
-                      <div className="text-lg font-medium text-black">
-                        {flight?.route}
-                      </div>
-                      {flight?.timeInfo && (
-                        <div className="text-sm text-gray-500 mt-1">
-                          {flight?.timeInfo}
-                        </div>
-                      )}
-                    </div>
+                    <span className="font-semibold text-lg">
+                      {flight.airline}
+                    </span>
                   </div>
-                  <div className="text-xl font-bold text-[#9ebf3f]">
-                    {flight?.price}
+                  <div className="text-gray-600">
+                    <span>{flight.route}</span>
+                  </div>
+                  <div className="text-gray-600">
+                    <span>{flight.timeInfo}</span>
+                  </div>
+                  <div className="text-gray-600">
+                    <span>Tarih: {location.state.date}</span>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+                <div className="text-right">
+                  <span className="text-2xl font-bold text-green-600">
+                    {flight.price}
+                  </span>
+                </div>
+              </label>
+            </div>
+          ))}
         </div>
-      )}
+
+        {selectedFlights.length > 0 && (
+          <button
+            onClick={handleCreateAlarm}
+            disabled={isLoading}
+            className={`mt-6 w-full py-3 px-6 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition-colors duration-200 ${
+              isLoading ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            {isLoading ? (
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                Alarm Kuruluyor...
+              </div>
+            ) : (
+              `${selectedFlights.length} Uçuş İçin Fiyat Alarmı Kur`
+            )}
+          </button>
+        )}
+
+        {isLoading && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl">
+              <div className="flex flex-col items-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+                <p className="text-lg font-semibold text-blue-600">
+                  Alarmlar Kuruluyor...
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
