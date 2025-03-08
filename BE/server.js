@@ -3,7 +3,6 @@ const cors = require("cors");
 const puppeteer = require("puppeteer-core");
 const chromium = require("chromium");
 const cron = require("node-cron");
-const { google } = require("googleapis");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const Alarm = require("./models/Alarm");
@@ -12,6 +11,7 @@ const debug = require("debug")("app:server");
 const createTicketNotificationEmail = require("./utils/email-template");
 const FlightAlarm = require("./models/FlightAlarm");
 const { createFlightAlarmEmail } = require("./utils/email-template");
+const formatPrice = require("./utils/price-formatter");
 
 // Load environment variables
 dotenv.config();
@@ -24,7 +24,7 @@ app.use(
       "https://your-frontend-production-url.com",
     ],
     credentials: true,
-    methods: ["GET", "POST", "OPTIONS"],
+    methods: ["GET", "POST", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
@@ -334,25 +334,40 @@ async function sendAlarmCreationEmail(to, alarmInfo) {
 
 // Alarm creation endpoint
 app.post("/create-alarm", async (req, res) => {
-  const { userId, from, to, date, selectedTime, email } = req.body;
+  const { userId, from, to, date, selectedTime, email, trainId, trainInfo } =
+    req.body;
+
+  // userId ve email kontrolü
+  if (!userId || !email) {
+    return res.status(400).json({
+      error: "Kullanıcı bilgileri eksik",
+      details: {
+        userId: !userId,
+        email: !email,
+      },
+    });
+  }
 
   try {
-    console.log("Creating alarm with data:", {
-      userId,
-      from,
-      to,
-      date,
-      selectedTime,
-      email,
-    });
+    console.log("Creating alarm with data:", req.body);
+
+    // trainInfo'yu güvenli bir şekilde oluştur
+    const safeTrainInfo = {
+      departureTime: trainInfo?.departureTime || selectedTime || "",
+      arrivalTime: trainInfo?.arrivalTime || "",
+      minPrice: trainInfo?.minPrice || 0,
+    };
 
     const alarm = new Alarm({
       userId,
-      from,
-      to,
-      date,
-      selectedTime,
+      from: from || "",
+      to: to || "",
+      date: date || "",
+      selectedTime: selectedTime || "",
       email,
+      trainId: trainId || "",
+      trainInfo: safeTrainInfo,
+      isActive: true,
     });
 
     await alarm.save();
@@ -364,7 +379,7 @@ app.post("/create-alarm", async (req, res) => {
         from,
         to,
         date,
-        selectedTime,
+        selectedTime: selectedTime || trainInfo?.departureTime || "",
       });
       console.log("Alarm creation email sent successfully");
     } catch (emailError) {
@@ -375,7 +390,10 @@ app.post("/create-alarm", async (req, res) => {
     res.json({ success: true, alarmId: alarm._id });
   } catch (error) {
     console.error("Error in create-alarm endpoint:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      error: "Alarm oluşturulurken bir hata oluştu",
+      details: error.message,
+    });
   }
 });
 
@@ -717,6 +735,15 @@ app.get("/search-flights", async (req, res) => {
         );
         const arrivalTimes = document.querySelectorAll(".flight-arrival-time");
 
+        // formatPrice fonksiyonunu burada tanımla
+        const formatPrice = (price) => {
+          if (!price) return null;
+          // String'e çevir ve sadece sayıları al
+          const numericPrice = price.toString().replace(/[^\d]/g, "");
+          // Sayıya çevir
+          return parseFloat(numericPrice);
+        };
+
         const flights = Array.from(summaryAirports).map((airport, index) => {
           const airportInfo = Array.from(airport.querySelectorAll("span"))
             .map((span) => span.textContent.trim())
@@ -724,7 +751,7 @@ app.get("/search-flights", async (req, res) => {
 
           const priceElement = averagePrices[index];
           const price = priceElement
-            ? priceElement.getAttribute("data-price")
+            ? formatPrice(priceElement.getAttribute("data-price"))
             : null;
 
           const airlineElement = marketingAirlines[index];
@@ -743,7 +770,12 @@ app.get("/search-flights", async (req, res) => {
 
           return {
             route: airportInfo,
-            price: price ? `${price} TL` : "Fiyat bulunamadı",
+            price: price
+              ? `${price.toLocaleString("tr-TR", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })} TL`
+              : "Fiyat bulunamadı",
             airline: airlineName || "Havayolu bilgisi bulunamadı",
             airlineIcon: airlineIcon || null,
             timeInfo,
@@ -781,44 +813,105 @@ app.get("/user-alarms/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const alarms = await Alarm.find({ userId })
-      .sort({ createdAt: -1 }) // En son oluşturulan alarmlar önce gelsin
-      .select("-__v"); // Gereksiz alanları çıkar
+    // Tren alarmlarını getir
+    const trainAlarms = await Alarm.find({ userId })
+      .sort({ createdAt: -1 })
+      .select("-__v");
 
-    console.log(`Retrieved ${alarms.length} alarms for user ${userId}`);
+    // Uçak alarmlarını getir
+    const flightAlarms = await FlightAlarm.find({ userId })
+      .sort({ createdAt: -1 })
+      .select("-__v");
 
-    res.json({
-      success: true,
-      alarms: alarms.map((alarm) => ({
+    console.log(
+      `Retrieved ${trainAlarms.length} train alarms and ${flightAlarms.length} flight alarms for user ${userId}`
+    );
+
+    // Tren ve uçak alarmlarını birleştir ve formatla
+    const allAlarms = [
+      ...trainAlarms.map((alarm) => ({
         id: alarm._id,
+        type: "train",
         from: alarm.from,
         to: alarm.to,
         date: alarm.date,
         selectedTime: alarm.selectedTime,
         isActive: alarm.isActive,
         createdAt: alarm.createdAt,
+        trainId: alarm.trainId,
+        trainInfo: alarm.trainInfo,
       })),
+      ...flightAlarms.map((alarm) => ({
+        id: alarm._id,
+        type: "flight",
+        from: alarm.from,
+        to: alarm.to,
+        date: alarm.date,
+        time: alarm.time,
+        airline: alarm.airline,
+        isActive: alarm.isActive,
+        createdAt: alarm.createdAt,
+        currentPrice: alarm.currentPrice,
+        initialPrice: alarm.initialPrice,
+      })),
+    ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    res.json({
+      success: true,
+      alarms: allAlarms,
     });
   } catch (error) {
-    console.error("Error fetching user alarms:", error);
+    console.error("Error fetching alarms:", error);
     res.status(500).json({ error: "Alarmlar getirilirken bir hata oluştu" });
   }
 });
 
 // Alarm silme endpoint'i
 app.delete("/alarms/:alarmId", async (req, res) => {
+  // CORS headers ekle
+  res.header("Access-Control-Allow-Origin", "http://localhost:5173");
+  res.header("Access-Control-Allow-Methods", "DELETE");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
   try {
     const { alarmId } = req.params;
-    const alarm = await Alarm.findByIdAndDelete(alarmId);
+
+    if (!alarmId) {
+      return res.status(400).json({ error: "Alarm ID gerekli" });
+    }
+
+    // Önce tren alarmlarında ara
+    let alarm = await Alarm.findById(alarmId);
+    let isTrainAlarm = true;
+
+    // Tren alarmında bulunamazsa uçak alarmlarında ara
+    if (!alarm) {
+      alarm = await FlightAlarm.findById(alarmId);
+      isTrainAlarm = false;
+    }
 
     if (!alarm) {
       return res.status(404).json({ error: "Alarm bulunamadı" });
     }
 
+    // Alarm tipine göre silme işlemini gerçekleştir
+    if (isTrainAlarm) {
+      await Alarm.findByIdAndDelete(alarmId);
+    } else {
+      await FlightAlarm.findByIdAndDelete(alarmId);
+    }
+
+    console.log(
+      `${isTrainAlarm ? "Tren" : "Uçak"} alarmı başarıyla silindi: ${alarmId}`
+    );
+
     res.json({ success: true, message: "Alarm başarıyla silindi" });
   } catch (error) {
     console.error("Error deleting alarm:", error);
-    res.status(500).json({ error: "Alarm silinirken bir hata oluştu" });
+    res.status(500).json({
+      error: "Alarm silinirken bir hata oluştu",
+      details: error.message,
+    });
   }
 });
 
@@ -909,14 +1002,14 @@ cron.schedule("0 * * * *", async () => {
                 date: alarm.date,
                 time: alarm.time,
                 airline: alarm.airline,
-                currentPrice: currentPrice,
-                previousPrice: previousPrice,
-                priceDrop: priceDrop,
+                currentPrice: formatPrice(currentPrice),
+                previousPrice: formatPrice(previousPrice),
+                priceDrop: formatPrice(priceDrop),
               };
 
               // Email gönder
               await sendEmail(alarm.email, createFlightAlarmEmail(flightInfo));
-
+              console.log("server", flightInfo);
               // Alarm fiyatını güncelle
               alarm.currentPrice = currentPrice;
               await alarm.save();
@@ -986,9 +1079,9 @@ app.post("/create-flight-alarm", async (req, res) => {
         date,
         time,
         airline,
-        currentPrice,
-        previousPrice: currentPrice,
-        priceDrop: 0,
+        currentPrice: formatPrice(currentPrice),
+        previousPrice: formatPrice(currentPrice),
+        priceDrop: formatPrice(0),
       });
 
       await sendEmail(email, emailContent);

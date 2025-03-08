@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '../utils/axios';
 import { API_BASE_URL } from '../config/api';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const HourChoices = ({ journeys }) => {
   const [selectedTrains, setSelectedTrains] = useState([]);
@@ -39,47 +41,79 @@ const HourChoices = ({ journeys }) => {
 
     setIsLoading(true);
     try {
+      console.log('Train Data for alarm creation:', trainData);
+
       const selectedTrainData = selectedTrains.map((trainId) => {
-        const train = trainData.trainLegs[0].trainAvailabilities.find(
+        const train = trainData?.trainLegs?.[0]?.trainAvailabilities?.find(
           (t) => t.trains[0].id === trainId
         );
 
-        // Tarih ve saat bilgilerini kontrol et ve logla
-        console.log('Train Data:', {
-          from: trainData.from,
-          to: trainData.to,
-          date: trainData.date,
-          departureTime: train.departureTime,
-          trainId: trainId,
-        });
+        console.log('Selected train:', train);
 
-        return {
+        const alarmData = {
+          userId: user.id,
           from: trainData.from || '',
           to: trainData.to || '',
           date: trainData.date || '',
-          selectedTime: train.departureTime || '',
+          selectedTime: train?.departureTime || '',
           email: user.primaryEmailAddress.emailAddress,
+          trainId: train?.trains?.[0]?.id || trainId || '',
+          trainInfo: {
+            departureTime: train?.departureTime || '',
+            arrivalTime: train?.arrivalTime || '',
+            minPrice: train?.minPrice || 0,
+          },
         };
+
+        if (!alarmData.userId || !alarmData.email) {
+          throw new Error('Kullanıcı bilgileri eksik. Lütfen giriş yapın.');
+        }
+
+        console.log('Gönderilecek alarm verisi:', alarmData);
+        return alarmData;
       });
 
-      // Seçili seferleri logla
-      console.log('Selected Train Data:', selectedTrainData);
+      for (const alarmData of selectedTrainData) {
+        try {
+          const response = await api.post(
+            `${API_BASE_URL}/create-alarm`,
+            alarmData
+          );
 
-      for (const trainData of selectedTrainData) {
-        const response = await api.post(`${API_BASE_URL}/create-alarm`, {
-          userId: user.id,
-          ...trainData,
-        });
-
-        if (response.data.success) {
-          console.log('Alarm başarıyla oluşturuldu:', response.data.alarmId);
+          if (response.data.success) {
+            console.log('Alarm başarıyla oluşturuldu:', response.data.alarmId);
+          } else {
+            console.error('Alarm oluşturulamadı:', response.data);
+            throw new Error('Alarm oluşturulamadı');
+          }
+        } catch (error) {
+          console.error('Alarm oluşturma hatası:', error);
+          throw error;
         }
       }
 
-      alert('Seçili seferler için alarmlar başarıyla kuruldu!');
+      toast.success('Seçili seferler için alarmlar başarıyla kuruldu!', {
+        position: 'top-right',
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
     } catch (error) {
       console.error('Alarm oluşturma hatası:', error);
-      alert('Alarm oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.');
+      toast.error(
+        'Alarm oluşturulurken bir hata oluştu: ' +
+          (error.response?.data?.error || error.message),
+        {
+          position: 'top-right',
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        }
+      );
     } finally {
       setIsLoading(false);
     }
@@ -93,6 +127,18 @@ const HourChoices = ({ journeys }) => {
 
   return (
     <div className="hour-choices flex flex-col gap-4">
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
       <div className="grid gap-2">
         {trainData.trainLegs[0].trainAvailabilities.map((train, index) => {
           console.log('Train:', train);

@@ -84,6 +84,7 @@ const createTicketNotificationEmail = (ticketInfo) => {
 };
 
 const createFlightAlarmEmail = (flightInfo) => {
+  console.log("flight-info", flightInfo);
   return {
     subject: "✈️ Uçak Bileti Fiyat Alarmı",
     html: `

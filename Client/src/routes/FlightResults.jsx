@@ -4,6 +4,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '../utils/axios';
 import { API_BASE_URL } from '../config/api';
+import { formatPrice } from '../utils/price-formatter';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 function FlightResults() {
   const location = useLocation();
@@ -62,8 +65,15 @@ function FlightResults() {
         const from = routeParts[0];
         const to = routeParts[routeParts.length - 1];
         console.log(from, to);
-        // Fiyatı temizle ve sayıya çevir
-        const price = parseFloat(flight.price.replace(/[^0-9]/g, ''));
+
+        // Fiyatı temizle ve sayıya çevir (örn: "2.818,99 TL" -> 2818.99)
+        const priceStr = flight.price
+          .replace(/[^\d,.-]/g, '') // Sadece sayılar, virgül, nokta ve tire kalır
+          .replace(/\./g, '') // Binlik ayracı noktaları kaldır
+          .replace(',', '.'); // Virgülü noktaya çevir
+        const price = parseFloat(priceStr);
+
+        console.log('İşlenen fiyat:', flight.price, ' -> ', price);
 
         // Zamanları ayır
         const [departureTime] = flight.timeInfo
@@ -133,10 +143,24 @@ function FlightResults() {
         }
       }
 
-      alert('Seçili uçuşlar için fiyat alarmları başarıyla kuruldu!');
+      toast.success('Seçili uçuşlar için fiyat alarmları başarıyla kuruldu!', {
+        position: 'top-right',
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
     } catch (error) {
       console.error('Alarm oluşturma hatası:', error);
-      alert(`Alarm oluşturulurken bir hata oluştu: ${error.message}`);
+      toast.error(`Alarm oluşturulurken bir hata oluştu: ${error.message}`, {
+        position: 'top-right',
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -144,6 +168,18 @@ function FlightResults() {
 
   return (
     <div className="min-h-screen bg-[#fbf9ef] py-12 px-4 sm:px-6 lg:px-8">
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
       <div className="max-w-3xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-[#1E2203]">Uçuş Seferleri</h1>
@@ -198,7 +234,7 @@ function FlightResults() {
                 </div>
                 <div className="text-right">
                   <span className="text-2xl font-bold text-green-600">
-                    {flight.price}
+                    {formatPrice(flight.price)} TL
                   </span>
                 </div>
               </label>

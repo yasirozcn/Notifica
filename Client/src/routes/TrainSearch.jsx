@@ -7,6 +7,8 @@ import stationsJson from '../stations.json';
 import '../App.css';
 import { api } from '../utils/axios';
 import { API_BASE_URL } from '../config/api';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const TrainSearch = () => {
   const navigate = useNavigate();
@@ -64,7 +66,14 @@ const TrainSearch = () => {
       !selectedStations.inisIstasyonAdi ||
       !date
     ) {
-      alert('Lütfen tüm bilgileri doldurun!');
+      toast.error('Lütfen tüm bilgileri doldurun!', {
+        position: 'top-right',
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
       return;
     }
 
@@ -109,84 +118,105 @@ const TrainSearch = () => {
         errorMessage += error.message;
       }
 
-      alert(errorMessage);
+      toast.error(errorMessage, {
+        position: 'top-right',
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-screen items-center">
-      <div className="flex flex-col gap-4 w-full max-w-2xl mx-auto p-12">
-        <h1 className="text-3xl font-bold text-center text-[#1E2203] mb-8">
-          Train Ticket Search
-        </h1>
+    <div className="min-h-screen bg-[#fbf9ef] py-12 px-4">
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
+      <div className="flex flex-col h-screen items-center">
+        <div className="flex flex-col gap-4 w-full max-w-2xl mx-auto p-12">
+          <h1 className="text-3xl font-bold text-center text-[#1E2203] mb-8">
+            Train Ticket Search
+          </h1>
 
-        <StationsSelect
-          stations={stations}
-          selectedStations={selectedStations}
-          setSelectedStations={setSelectedStations}
-        />
-
-        <div className="flex flex-col">
-          <label className="text-sm font-medium text-gray-600 mb-1">
-            Journey Date
-          </label>
-          <input
-            type="date"
-            onChange={(e) => setDate(e.target.value)}
-            className="
-              w-full px-4 py-2
-              border-2 border-gray-200 rounded-lg
-              focus:border-[#9ebf3f] focus:ring-[#9ebf3f]
-              text-gray-700
-              transition-colors duration-200
-              hover:border-[#9ebf3f]
-            "
-            min={new Date().toISOString().split('T')[0]}
+          <StationsSelect
+            stations={stations}
+            selectedStations={selectedStations}
+            setSelectedStations={setSelectedStations}
           />
-        </div>
 
-        <div className="toggle-container" onClick={toggleHandler}>
-          <div className={`toggle-switch ${business ? 'active' : ''}`}>
-            <div className="toggle-knob"></div>
+          <div className="flex flex-col">
+            <label className="text-sm font-medium text-gray-600 mb-1">
+              Journey Date
+            </label>
+            <input
+              type="date"
+              onChange={(e) => setDate(e.target.value)}
+              className="
+                w-full px-4 py-2
+                border-2 border-gray-200 rounded-lg
+                focus:border-[#9ebf3f] focus:ring-[#9ebf3f]
+                text-gray-700
+                transition-colors duration-200
+                hover:border-[#9ebf3f]
+              "
+              min={new Date().toISOString().split('T')[0]}
+            />
           </div>
-          <span className="toggle-label">
-            {business ? 'Business Class: ON' : 'Business Class: OFF'}
-          </span>
+
+          <div className="toggle-container" onClick={toggleHandler}>
+            <div className={`toggle-switch ${business ? 'active' : ''}`}>
+              <div className="toggle-knob"></div>
+            </div>
+            <span className="toggle-label">
+              {business ? 'Business Class: ON' : 'Business Class: OFF'}
+            </span>
+          </div>
+
+          <button
+            onClick={fetchJourneys}
+            disabled={loading}
+            className={`
+              w-full py-3 px-6
+              bg-[#9ebf3f] hover:bg-[#8ba835]
+              text-white font-semibold
+              rounded-lg
+              transition-colors duration-200
+              shadow-md hover:shadow-lg
+              disabled:opacity-50 disabled:cursor-not-allowed
+            `}
+          >
+            {loading ? 'Searching...' : 'Search Tickets'}
+          </button>
         </div>
 
-        <button
-          onClick={fetchJourneys}
-          disabled={loading}
-          className={`
-            w-full py-3 px-6
-            bg-[#9ebf3f] hover:bg-[#8ba835]
-            text-white font-semibold
-            rounded-lg
-            transition-colors duration-200
-            shadow-md hover:shadow-lg
-            disabled:opacity-50 disabled:cursor-not-allowed
-          `}
-        >
-          {loading ? 'Searching...' : 'Search Tickets'}
-        </button>
-      </div>
-
-      {loading && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl">
-            <div className="flex flex-col items-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-              <p className="text-lg font-semibold text-blue-600">
-                Searching for tickets...
-              </p>
+        {loading && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl">
+              <div className="flex flex-col items-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+                <p className="text-lg font-semibold text-blue-600">
+                  Searching for tickets...
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {!loading && journeys && <HourChoices journeys={journeys} />}
+        {!loading && journeys && <HourChoices journeys={journeys} />}
+      </div>
     </div>
   );
 };
